@@ -1,0 +1,17 @@
+/Users/steve/Documents/GitHub/signals/Signals/bin/Debug/net9.0/Signals
+/Users/steve/Documents/GitHub/signals/Signals/bin/Debug/net9.0/Signals.deps.json
+/Users/steve/Documents/GitHub/signals/Signals/bin/Debug/net9.0/Signals.runtimeconfig.json
+/Users/steve/Documents/GitHub/signals/Signals/bin/Debug/net9.0/Signals.dll
+/Users/steve/Documents/GitHub/signals/Signals/bin/Debug/net9.0/Signals.pdb
+/Users/steve/Documents/GitHub/signals/Signals/bin/Debug/net9.0/MQTTnet.dll
+/Users/steve/Documents/GitHub/signals/Signals/obj/Debug/net9.0/Signals.csproj.AssemblyReference.cache
+/Users/steve/Documents/GitHub/signals/Signals/obj/Debug/net9.0/Signals.GeneratedMSBuildEditorConfig.editorconfig
+/Users/steve/Documents/GitHub/signals/Signals/obj/Debug/net9.0/Signals.AssemblyInfoInputs.cache
+/Users/steve/Documents/GitHub/signals/Signals/obj/Debug/net9.0/Signals.AssemblyInfo.cs
+/Users/steve/Documents/GitHub/signals/Signals/obj/Debug/net9.0/Signals.csproj.CoreCompileInputs.cache
+/Users/steve/Documents/GitHub/signals/Signals/obj/Debug/net9.0/Signals.csproj.Up2Date
+/Users/steve/Documents/GitHub/signals/Signals/obj/Debug/net9.0/Signals.dll
+/Users/steve/Documents/GitHub/signals/Signals/obj/Debug/net9.0/refint/Signals.dll
+/Users/steve/Documents/GitHub/signals/Signals/obj/Debug/net9.0/Signals.pdb
+/Users/steve/Documents/GitHub/signals/Signals/obj/Debug/net9.0/Signals.genruntimeconfig.cache
+/Users/steve/Documents/GitHub/signals/Signals/obj/Debug/net9.0/ref/Signals.dll

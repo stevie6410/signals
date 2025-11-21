@@ -1,0 +1,10 @@
+homeassistant: false
+frontend:
+  port: 8080
+
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://mosquitto
+
+# serial:
+#   port: /dev/ttyUSB0

@@ -1,0 +1,107 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  seq:
+    image: datalust/seq:latest
+    container_name: seq
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
+    ports:
+      - "5341:80"
+    volumes:
+      - seq-data:/data
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=signals
+      - POSTGRES_USER=signals
+      - POSTGRES_PASSWORD=signals
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  signals:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: signals
+    depends_on:
+      - mosquitto
+      - seq
+      - prometheus
+      - postgres
+    environment:
+      MQTT__Host: mosquitto
+      MQTT__Port: "1883"
+      SEQ_URL: "http://seq"
+      POSTGRES_CONNECTION_STRING: "Host=postgres;Port=5432;Database=signals;Username=signals;Password=signals"
+      N8N_WEBHOOK_URL: "http://n8n:5678/webhook/signals/event"
+      N8N_WEBHOOK_TEST_URL: "http://n8n:5678/webhook-test/signals/event"
+    ports:
+      - "5050:5050"   # Prometheus metrics
+
+  # zigbee2mqtt:
+  #   image: koenkk/zigbee2mqtt
+  #   container_name: zigbee2mqtt
+  #   volumes:
+  #     - ./zigbee2mqtt-data:/app/data
+  #   environment:
+  #     - TZ=Europe/London
+  #   devices:
+  #     - /dev/ttyUSB0:/dev/ttyUSB0
+  #   depends_on:
+  #     - mosquitto
+  #   ports:
+  #     - "8080:8080"
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"          # access via http://<server>:5678
+    environment:
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - GENERIC_TIMEZONE=Europe/London
+      - N8N_DIAGNOSTICS_ENABLED=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - default              # or your custom network (same as 'signals')
+
+
+volumes:
+  seq-data:
+  grafana-data:
+  postgres-data:
+  n8n_data:
+
