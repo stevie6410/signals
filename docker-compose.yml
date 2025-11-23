@@ -6,7 +6,7 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ${SIGNALS_ROOT:-.}/src/Signals/mosquitto-config/mosquitto.conf
+        - ${SIGNALS_ROOT:-.}/config/mosquitto:/mosquitto/config:ro
     healthcheck:
       # simple "is the mosquitto process running" check
       test: ["CMD-SHELL", "pidof mosquitto || exit 1"]
@@ -33,7 +33,6 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      # prometheus.yml is now in src/Signals
       - ${SIGNALS_ROOT:-.}/src/Signals/prometheus.yml
 
   grafana:
@@ -44,8 +43,7 @@ services:
       - "3000:3000"
     volumes:
       - grafana-data:/var/lib/grafana
-      # provisioning directory is now in src/Signals
-      - ${SIGNALS_ROOT:-.}/src/Signals/grafana-provisioning
+      - ${SIGNALS_ROOT:-.}/config/grafana
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
 
