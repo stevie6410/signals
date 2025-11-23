@@ -91,7 +91,7 @@ services:
   #     - "8080:8080"
 
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:1.108.2       # <--- pin to a specific stable version
     container_name: n8n
     restart: unless-stopped
     ports:
@@ -99,11 +99,15 @@ services:
     environment:
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
-      - N8N_HOST=192.168.0.191              # <--- replace with your VM IP or DNS name
-      - N8N_EDITOR_BASE_URL=http://192.168.0.191:5678
-      - N8N_API_BASE_URL=http://192.168.0.191:5678
       - GENERIC_TIMEZONE=Europe/London
       - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_RUNNERS_ENABLED=true
+      - DB_SQLITE_POOL_SIZE=8
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - default
 
 volumes:
   seq-data:
