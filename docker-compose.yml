@@ -86,23 +86,23 @@ services:
     ports:
       - "5050:5050"
 
-  # n8n:
-  #   image: n8nio/n8n:stable
-  #   container_name: n8n
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5678:5678"
-  #   environment:
-  #     - N8N_PORT=5678
-  #     - N8N_PROTOCOL=http
-  #     - N8N_SECURE_COOKIE=false
-  #     - GENERIC_TIMEZONE=Europe/London
-  #     - N8N_DIAGNOSTICS_ENABLED=false
-  #     - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
-  #     - N8N_RUNNERS_ENABLED=true
-  #     - DB_SQLITE_POOL_SIZE=8
-  #   volumes:
-  #     - n8n_data:/home/node/.n8n
+  n8n:
+    image: n8nio/n8n:stable
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_SECURE_COOKIE=false
+      - GENERIC_TIMEZONE=Europe/London
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_RUNNERS_ENABLED=true
+      - DB_SQLITE_POOL_SIZE=8
+    volumes:
+      - n8n_data:/home/node/.n8n
 
 volumes:
   seq-data:
