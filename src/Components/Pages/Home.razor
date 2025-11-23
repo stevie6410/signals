@@ -1,0 +1,56 @@
+@page "/"
+@inject SignalLog Log
+
+<PageTitle>Signal logs</PageTitle>
+
+<h2>Signal logs</h2>
+<p class="subtitle">A simple Blazor page that lists every signal object in the in-memory log.</p>
+
+@if (!Log.Events.Any())
+{
+    <p>No signals have been recorded yet.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Timestamp (UTC)</th>
+                    <th>Device</th>
+                    <th>Capability</th>
+                    <th>Event</th>
+                    <th>Value</th>
+                    <th>Raw payload</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var entry in Log.Events)
+            {
+                <tr>
+                    <td>@entry.TimestampUtc.ToString("u")</td>
+                    <td>@entry.DeviceId (@entry.Location)</td>
+                    <td>@entry.Capability</td>
+                    <td>@entry.EventType @if (!string.IsNullOrWhiteSpace(entry.EventSubType)) { <text>/ @entry.EventSubType</text>; }</td>
+                    <td>@(entry.Value?.ToString() ?? "-")</td>
+                    <td>
+                        <pre class="payload">@FormatPayload(entry)</pre>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private static string FormatPayload(SignalEvent entry)
+    {
+        if (entry.RawPayloadArray is { } array)
+        {
+            return array.ToString() ?? string.Empty;
+        }
+
+        return entry.RawPayload.ToString();
+    }
+}
