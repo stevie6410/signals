@@ -39,7 +39,7 @@ public sealed record SignalEvent(
     JsonElement RawPayload,
     DeviceKind DeviceKind,
     EventCategory EventCategory,
-    JsonElement? RawPayload
+    JsonElement? RawPayloadArray
     );
 
 class Program
