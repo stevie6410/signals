@@ -331,7 +331,8 @@ class Program
             RawTopic: topic,
             RawPayload: payload,
             DeviceKind: deviceKind,
-            EventCategory: eventCategory);
+            EventCategory: eventCategory,
+            RawPayloadArray: null);
     }
 
     private static void PrintPrettyEvent(SignalEvent ev)
