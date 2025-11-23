@@ -86,6 +86,20 @@ services:
     ports:
       - "5050:5050"
 
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt
+    container_name: zigbee2mqtt
+    volumes:
+      - ${SIGNALS_ROOT:-.}/src/Signals/zigbee2mqtt-data:/app/data
+    environment:
+      - TZ=Europe/London
+    devices:
+      - /dev/serial/by-id/usb-ITead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_d8aa044869afed11b90d394e71c9e8b5-if00-port0:/dev/ttyUSB0
+    depends_on:
+      - mosquitto
+    ports:
+      - "8080:8080"
+
   n8n:
     image: n8nio/n8n:stable
     container_name: n8n
