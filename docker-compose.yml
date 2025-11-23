@@ -6,8 +6,7 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      # mosquitto.conf is now in src/Signals
-      - ${SIGNALS_ROOT:-.}/src/Signals/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ${SIGNALS_ROOT:-.}/src/Signals/mosquitto-config/mosquitto.conf
     healthcheck:
       # simple "is the mosquitto process running" check
       test: ["CMD-SHELL", "pidof mosquitto || exit 1"]
