@@ -43,6 +43,7 @@ services:
   postgres:
     image: postgres:16
     container_name: postgres
+    restart: unless-stopped
     environment:
       - POSTGRES_DB=signals
       - POSTGRES_USER=signals
@@ -51,18 +52,27 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U signals -d signals"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   signals:
     build:
-      # build from the project folder that has Signals.csproj + its Dockerfile
       context: ./src/Signals
       dockerfile: Dockerfile
     container_name: signals
+    restart: unless-stopped
     depends_on:
-      - mosquitto
-      - seq
-      - prometheus
-      - postgres
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+      seq:
+        condition: service_started
+      prometheus:
+        condition: service_started
     environment:
       MQTT__Host: mosquitto
       MQTT__Port: "1883"
@@ -71,7 +81,8 @@ services:
       N8N_WEBHOOK_URL: "http://n8n:5678/webhook/signals/event"
       N8N_WEBHOOK_TEST_URL: "http://n8n:5678/webhook-test/signals/event"
     ports:
-      - "5050:5050"   # Prometheus metrics from your app
+      - "5050:5050"
+
 
   # zigbee2mqtt:
   #   image: koenkk/zigbee2mqtt
