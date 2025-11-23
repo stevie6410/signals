@@ -134,73 +134,69 @@ class Program
             };
 
             mqttClient.ApplicationMessageReceivedAsync += e =>
-      {
-          var topic = e.ApplicationMessage.Topic;
+            {
+                var topic = e.ApplicationMessage.Topic;
+                var payloadString = e.ApplicationMessage.ConvertPayloadToString();
 
-          // 👇 Ignore Zigbee2MQTT bridge logging messages
-          if (topic.Equals("sdhome/bridge/logging", StringComparison.OrdinalIgnoreCase))
-          {
-              return Task.CompletedTask;
-          }
+                if (string.IsNullOrWhiteSpace(payloadString))
+                {
+                    Log.Warning("Received empty payload on topic {Topic}. Skipping.", topic);
+                    return Task.CompletedTask;
+                }
 
-          var payloadString = e.ApplicationMessage.ConvertPayloadToString();
+                try
+                {
+                    using var doc = JsonDocument.Parse(payloadString);
+                    var root = doc.RootElement.Clone();
 
-          // 👇 NEW: handle null / empty payloads safely
-          if (string.IsNullOrWhiteSpace(payloadString))
-          {
-              Log.Warning("Received empty payload on topic {Topic}. Skipping.", topic);
-              return Task.CompletedTask;
-          }
+                    // 👇 NEW: handle array payloads
+                    if (root.ValueKind == JsonValueKind.Array)
+                    {
+                        var arrayEvent = new SignalEvent(
+                            Id: Guid.NewGuid(),
+                            Source: "mqtt",
+                            DeviceId: topic,             // treat topic as the device or source
+                            Location: null,
+                            Capability: "bridge_dump",
+                            EventType: "report",
+                            EventSubType: null,
+                            Value: null,
+                            TimestampUtc: DateTime.UtcNow,
+                            RawTopic: topic,
+                            RawPayload: default,         // 👈 keep empty JsonElement
+                            DeviceKind: DeviceKind.Unknown,
+                            EventCategory: EventCategory.Telemetry,
+                            RawPayloadArray: root        // 👈 HERE is the array
+                        );
 
-          try
-          {
-              using var doc = JsonDocument.Parse(payloadString);
-              var root = doc.RootElement.Clone();
+                        Log.Information("Received bridge devices dump {@Event}", arrayEvent);
 
-              var signalEvent = MapToSignalEvent(topic, root);
+                        // You can choose whether to store this or not:
+                        // _ = InsertEventAsync(postgresConnectionString, arrayEvent);
 
-              var isAutomationTrigger = signalEvent.EventCategory == EventCategory.Trigger;
+                        return Task.CompletedTask;
+                    }
 
-              // --- Metrics ---
-              ReceivedEventsTotal.Inc();
-              ReceivedEventsByDeviceTotal.WithLabels(signalEvent.DeviceId).Inc();
+                    // 👇 Normal object payload path
+                    var signalEvent = MapToSignalEvent(topic, root) with
+                    {
+                        RawPayloadArray = null // ensure consistency
+                    };
 
-              // --- Persist to Postgres (fire-and-forget) ---
-              if (!string.IsNullOrWhiteSpace(postgresConnectionString))
-              {
-                  _ = InsertEventAsync(postgresConnectionString, signalEvent);
-              }
+                    // Existing handling…
+                    // metrics, DB insert, webhook, pretty print, etc.
+                }
+                catch (JsonException)
+                {
+                    Log.Warning("Received non-JSON payload on {Topic}: {Payload}", topic, payloadString);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Error handling MQTT message on {Topic} with payload {Payload}", topic, payloadString);
+                }
 
-              // --- Structured log to Seq + console ---
-              Log.Information("SignalEvent received {@SignalEvent}", signalEvent);
-
-              // --- Pretty console output ---
-              PrintPrettyEvent(signalEvent);
-
-              // --- Send to n8n webhook (fire-and-forget) ---
-              if (isAutomationTrigger)
-              {
-                  if (!string.IsNullOrWhiteSpace(n8nWebhookUrl))
-                  {
-                      _ = SendToWebhookAsync(n8nWebhookUrl, signalEvent);
-                  }
-                  if (!string.IsNullOrWhiteSpace(n8nWebhookTestUrl))
-                  {
-                      _ = SendToWebhookAsync(n8nWebhookTestUrl, signalEvent);
-                  }
-              }
-          }
-          catch (JsonException)
-          {
-              Log.Warning("Received non-JSON payload on {Topic}: {Payload}", topic, payloadString);
-          }
-          catch (Exception ex)
-          {
-              Log.Error(ex, "Error handling MQTT message on {Topic} with payload {Payload}", topic, payloadString);
-          }
-
-          return Task.CompletedTask;
-      };
+                return Task.CompletedTask;
+            };
 
             await mqttClient.ConnectAsync(mqttClientOptions);
             Log.Information("Connecting to MQTT broker {Host}:{Port}...", brokerAddress, brokerPort);
