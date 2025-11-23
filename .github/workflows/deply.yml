@@ -1,0 +1,24 @@
+name: Deploy to home server
+
+on:
+  push:
+    branches:
+      - main        # or 'master' if that’s your default branch
+
+jobs:
+  deploy:
+    runs-on: self-hosted   # use your self-hosted runner
+    steps:
+      # Optional: just prints context so you can debug if needed
+      - name: Show runner info
+        run: |
+          echo "Running on: $(hostname)"
+          pwd
+
+      # We don't strictly need actions/checkout because deploy.sh does its own git fetch/reset
+      # but you *can* add it if you want a workspace copy:
+      # - uses: actions/checkout@v4
+
+      - name: Run deploy script
+        run: |
+          /home/signals/deploy.sh
