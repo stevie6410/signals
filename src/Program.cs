@@ -134,67 +134,73 @@ class Program
             };
 
             mqttClient.ApplicationMessageReceivedAsync += e =>
-            {
-                var topic = e.ApplicationMessage.Topic;
-    
-                // 👇 Ignore Zigbee2MQTT bridge logging messages
-                if (topic.Equals("sdhome/bridge/logging", StringComparison.OrdinalIgnoreCase))
-                {
-                    return Task.CompletedTask;
-                }
-    
-                var payloadString = e.ApplicationMessage.ConvertPayloadToString();
+      {
+          var topic = e.ApplicationMessage.Topic;
 
-                try
-                {
-                    using var doc = JsonDocument.Parse(payloadString);
-                    var root = doc.RootElement.Clone();
+          // 👇 Ignore Zigbee2MQTT bridge logging messages
+          if (topic.Equals("sdhome/bridge/logging", StringComparison.OrdinalIgnoreCase))
+          {
+              return Task.CompletedTask;
+          }
 
-                    var signalEvent = MapToSignalEvent(topic, root);
+          var payloadString = e.ApplicationMessage.ConvertPayloadToString();
 
-                    var isAutomationTrigger = signalEvent.EventCategory == EventCategory.Trigger;
+          // 👇 NEW: handle null / empty payloads safely
+          if (string.IsNullOrWhiteSpace(payloadString))
+          {
+              Log.Warning("Received empty payload on topic {Topic}. Skipping.", topic);
+              return Task.CompletedTask;
+          }
 
-                    // --- Metrics ---
-                    ReceivedEventsTotal.Inc();
-                    ReceivedEventsByDeviceTotal.WithLabels(signalEvent.DeviceId).Inc();
+          try
+          {
+              using var doc = JsonDocument.Parse(payloadString);
+              var root = doc.RootElement.Clone();
 
-                    // --- Persist to Postgres (fire-and-forget) ---
-                    if (!string.IsNullOrWhiteSpace(postgresConnectionString))
-                    {
-                        _ = InsertEventAsync(postgresConnectionString, signalEvent);
-                    }
+              var signalEvent = MapToSignalEvent(topic, root);
 
-                    // --- Structured log to Seq + console ---
-                    Log.Information("SignalEvent received {@SignalEvent}", signalEvent);
+              var isAutomationTrigger = signalEvent.EventCategory == EventCategory.Trigger;
 
-                    // --- Pretty console output ---
-                    PrintPrettyEvent(signalEvent);
+              // --- Metrics ---
+              ReceivedEventsTotal.Inc();
+              ReceivedEventsByDeviceTotal.WithLabels(signalEvent.DeviceId).Inc();
 
-                    // --- Send to n8n webhook (fire-and-forget) ---
-                    // Only send automation-trigger events to avoid spamming n8n and creating loops
-                    if (isAutomationTrigger)
-                    {
-                        if (!string.IsNullOrWhiteSpace(n8nWebhookUrl))
-                        {
-                            _ = SendToWebhookAsync(n8nWebhookUrl, signalEvent);
-                        }
-                        if (!string.IsNullOrWhiteSpace(n8nWebhookTestUrl))
-                        {
-                            _ = SendToWebhookAsync(n8nWebhookTestUrl, signalEvent);
-                        }
-                    }
-                }
-                catch (JsonException)
-                {
-                    Log.Warning("Received non-JSON payload on {Topic}: {Payload}", topic, payloadString);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Error handling MQTT message on {Topic} with payload {Payload}", topic, payloadString);
-                }
+              // --- Persist to Postgres (fire-and-forget) ---
+              if (!string.IsNullOrWhiteSpace(postgresConnectionString))
+              {
+                  _ = InsertEventAsync(postgresConnectionString, signalEvent);
+              }
 
-                return Task.CompletedTask;
-            };
+              // --- Structured log to Seq + console ---
+              Log.Information("SignalEvent received {@SignalEvent}", signalEvent);
+
+              // --- Pretty console output ---
+              PrintPrettyEvent(signalEvent);
+
+              // --- Send to n8n webhook (fire-and-forget) ---
+              if (isAutomationTrigger)
+              {
+                  if (!string.IsNullOrWhiteSpace(n8nWebhookUrl))
+                  {
+                      _ = SendToWebhookAsync(n8nWebhookUrl, signalEvent);
+                  }
+                  if (!string.IsNullOrWhiteSpace(n8nWebhookTestUrl))
+                  {
+                      _ = SendToWebhookAsync(n8nWebhookTestUrl, signalEvent);
+                  }
+              }
+          }
+          catch (JsonException)
+          {
+              Log.Warning("Received non-JSON payload on {Topic}: {Payload}", topic, payloadString);
+          }
+          catch (Exception ex)
+          {
+              Log.Error(ex, "Error handling MQTT message on {Topic} with payload {Payload}", topic, payloadString);
+          }
+
+          return Task.CompletedTask;
+      };
 
             await mqttClient.ConnectAsync(mqttClientOptions);
             Log.Information("Connecting to MQTT broker {Host}:{Port}...", brokerAddress, brokerPort);
