@@ -34,7 +34,7 @@ services:
       - "9090:9090"
     volumes:
       # prometheus.yml is now in src/Signals
-      - ${SIGNALS_ROOT:-.}/src/Signals/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ${SIGNALS_ROOT:-.}/src/Signals/prometheus.yml
 
   grafana:
     image: grafana/grafana:latest
@@ -45,7 +45,7 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       # provisioning directory is now in src/Signals
-      - ${SIGNALS_ROOT:-.}/src/Signals/grafana-provisioning:/etc/grafana/provisioning
+      - ${SIGNALS_ROOT:-.}/src/Signals/grafana-provisioning
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
 
