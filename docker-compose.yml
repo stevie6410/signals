@@ -73,22 +73,22 @@ services:
     ports:
       - "5050:5050"   # Prometheus metrics from your app
 
-  zigbee2mqtt:
-    image: koenkk/zigbee2mqtt
-    container_name: zigbee2mqtt
-    volumes:
-      # zigbee2mqtt-data is now in src/Signals
-      - ./src/Signals/zigbee2mqtt-data:/app/data
-    environment:
-      - TZ=Europe/London
-    devices:
-      # You'll need to point this at your *actual* Zigbee USB device
-      # e.g. on macOS it might be /dev/tty.usbserial-XXXXX
-      - /dev/ttyUSB0:/dev/ttyUSB0
-    depends_on:
-      - mosquitto
-    ports:
-      - "8080:8080"
+  # zigbee2mqtt:
+  #   image: koenkk/zigbee2mqtt
+  #   container_name: zigbee2mqtt
+  #   volumes:
+  #     # zigbee2mqtt-data is now in src/Signals
+  #     - ./src/Signals/zigbee2mqtt-data:/app/data
+  #   environment:
+  #     - TZ=Europe/London
+  #   devices:
+  #     # You'll need to point this at your *actual* Zigbee USB device
+  #     # e.g. on macOS it might be /dev/tty.usbserial-XXXXX
+  #     - /dev/ttyUSB0:/dev/ttyUSB0
+  #   depends_on:
+  #     - mosquitto
+  #   ports:
+  #     - "8080:8080"
 
   n8n:
     image: n8nio/n8n:latest
