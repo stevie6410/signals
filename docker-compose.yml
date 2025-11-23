@@ -6,8 +6,8 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      # Mount config/mosquitto (which contains mosquitto.conf) into the container's config dir
-      - ${SIGNALS_ROOT:-.}/config/mosquitto:/mosquitto/config
+      # Relative path → container config directory
+      - ./config/mosquitto:/mosquitto/config
 
   seq:
     image: datalust/seq:latest
@@ -28,8 +28,8 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      # Mount config/prometheus/prometheus.yml as the main Prometheus config file
-      - ${SIGNALS_ROOT:-.}/config/prometheus:/etc/prometheus
+      # Mount whole directory containing prometheus.yml
+      - ./config/prometheus:/etc/prometheus
 
   grafana:
     image: grafana/grafana:latest
@@ -39,8 +39,8 @@ services:
       - "3000:3000"
     volumes:
       - grafana-data:/var/lib/grafana
-      # Treat config/grafana as the "datasources" provisioning folder
-      - ${SIGNALS_ROOT:-.}/config/grafana:/etc/grafana/provisioning/datasources
+      # Provision datasources from Git repo
+      - ./config/grafana:/etc/grafana/provisioning/datasources
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
 
@@ -87,20 +87,6 @@ services:
     ports:
       - "5050:5050"
 
-  # zigbee2mqtt:
-  #   image: koenkk/zigbee2mqtt
-  #   container_name: zigbee2mqtt
-  #   volumes:
-  #     - ${SIGNALS_ROOT:-.}/config/zigbee:/app/data
-  #   environment:
-  #     - TZ=Europe/London
-  #   devices:
-  #     - /dev/ttyUSB0:/dev/ttyUSB0
-  #   depends_on:
-  #     - mosquitto
-  #   ports:
-  #     - "8080:8080"
-
   n8n:
     image: n8nio/n8n:stable
     container_name: n8n
@@ -118,8 +104,6 @@ services:
       - DB_SQLITE_POOL_SIZE=8
     volumes:
       - n8n_data:/home/node/.n8n
-    networks:
-      - default
 
 volumes:
   seq-data:
