@@ -6,7 +6,8 @@ services:
     ports:
       - "1883:1883"
     volumes:
-        - ${SIGNALS_ROOT:-.}/config/mosquitto:/mosquitto/config
+      # Mount config/mosquitto (which contains mosquitto.conf) into the container's config dir
+      - ${SIGNALS_ROOT:-.}/config/mosquitto:/mosquitto/config:ro
 
   seq:
     image: datalust/seq:latest
@@ -27,7 +28,8 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ${SIGNALS_ROOT:-.}/src/Signals/prometheus.yml
+      # Mount config/prometheus/prometheus.yml as the main Prometheus config file
+      - ${SIGNALS_ROOT:-.}/config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
   grafana:
     image: grafana/grafana:latest
@@ -37,7 +39,8 @@ services:
       - "3000:3000"
     volumes:
       - grafana-data:/var/lib/grafana
-      - ${SIGNALS_ROOT:-.}/config/grafana
+      # Treat config/grafana as the "datasources" provisioning folder
+      - ${SIGNALS_ROOT:-.}/config/grafana:/etc/grafana/provisioning/datasources:ro
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
 
@@ -88,13 +91,10 @@ services:
   #   image: koenkk/zigbee2mqtt
   #   container_name: zigbee2mqtt
   #   volumes:
-  #     # zigbee2mqtt-data is now in src/Signals
-  #     - ${SIGNALS_ROOT:-.}/src/Signals/zigbee2mqtt-data:/app/data
+  #     - ${SIGNALS_ROOT:-.}/config/zigbee:/app/data
   #   environment:
   #     - TZ=Europe/London
   #   devices:
-  #     # You'll need to point this at your *actual* Zigbee USB device
-  #     # e.g. on macOS it might be /dev/tty.usbserial-XXXXX
   #     - /dev/ttyUSB0:/dev/ttyUSB0
   #   depends_on:
   #     - mosquitto
