@@ -6,8 +6,7 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      # Relative path → container config directory
-      - ./config/mosquitto:/mosquitto/config
+      - ./config/mosquitto:/mosquitto/config:ro
 
   seq:
     image: datalust/seq:latest
