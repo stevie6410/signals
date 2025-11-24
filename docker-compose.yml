@@ -90,8 +90,7 @@
       Logging__SeqUrl: "http://seq"
 
     ports:
-      # host:container — ASP.NET Core in container listens on 8080 by default
-      - "5000:8081"
+      - "6000:6000"
  
   zigbee2mqtt:
     image: koenkk/zigbee2mqtt
