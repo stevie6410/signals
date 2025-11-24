@@ -5,6 +5,18 @@ using SDHome.Lib.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DevCors", policy =>
+    {
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -35,6 +47,8 @@ builder.Services.AddHostedService<SignalsMqttWorker>();
 
 var app = builder.Build();
 
+
+app.UseCors("DevCors");
 
 // Ensure SQL Server table/indexes exist at startup
 using (var scope = app.Services.CreateScope())
