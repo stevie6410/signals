@@ -1,15 +1,18 @@
-﻿using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
-using Microsoft.Extensions.Options;
-using SDHome.Lib.Data;
-using SDHome.Web.Data;
-using SDHome.Web.Mappers;
-using SDHome.Web.Models;
-using SDHome.Web.Services;
+﻿using SDHome.Lib.Data;
+using SDHome.Lib.Mappers;
+using SDHome.Lib.Models;
+using SDHome.Lib.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Bind config to options
+// Add services to the container.
+
+builder.Services.AddControllers();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+
 builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection("Signals:Mqtt"));
 builder.Services.Configure<PostgresOptions>(builder.Configuration.GetSection("Signals:Postgres"));
 builder.Services.Configure<MsSQLOptions>(builder.Configuration.GetSection("Signals:MSSQL"));
@@ -17,46 +20,40 @@ builder.Services.Configure<WebhookOptions>(builder.Configuration.GetSection("Sig
 builder.Services.Configure<LoggingOptions>(builder.Configuration.GetSection("Logging"));
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection("Metrics"));
 
-// Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 
-// --- Connection string from config ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// 🔌 Repository (read + write)
 builder.Services.AddSingleton<ISignalEventsRepository>(_ => new SqlServerSignalEventsRepository(connectionString));
-// ^^^ make sure this class name matches whatever is in Data/PostgeSqlSignalEventsRepository.cs
-
-// 🔌 Mapper (MQTT payload → SignalEvent)
 builder.Services.AddSingleton<ISignalEventMapper, SignalEventMapper>();
-
-// 🔌 Query service for Blazor UI
 builder.Services.AddScoped<ISignalQueryService, SignalQueryService>();
-
-// 🔌 HttpClient for webhooks
 builder.Services.AddHttpClient();
-
-// 🔌 Core Signals service (metrics + DB + webhooks)
 builder.Services.AddSingleton<ISignalsService, SignalsService>();
-
-// 🔌 Background MQTT listener
 builder.Services.AddHostedService<SignalsMqttWorker>();
+
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+
+// Ensure SQL Server table/indexes exist at startup
+using (var scope = app.Services.CreateScope())
 {
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
+    var repo = scope.ServiceProvider.GetRequiredService<ISignalEventsRepository>();
+    await repo.EnsureCreatedAsync();   // this runs your DDL once
+}
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
-app.UseRouting();
 
-app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
+app.UseAuthorization();
+
+app.MapControllers();
 
 app.Run();

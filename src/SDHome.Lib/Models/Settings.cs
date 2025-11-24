@@ -1,4 +1,4 @@
-﻿namespace SDHome.Web.Models
+﻿namespace SDHome.Lib.Models
 {
     public class MqttOptions
     {
@@ -16,6 +16,7 @@
     {
         public string ConnectionString { get; set; } = "";
     }
+
 
     public class WebhookOptions
     {

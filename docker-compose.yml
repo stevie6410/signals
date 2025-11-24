@@ -64,7 +64,7 @@
   signals:
     build:
       context: .
-      dockerfile: ./src/SDHome.Web/Dockerfile
+      dockerfile: ./src/SDHome.Api/Dockerfile
     container_name: signals
     restart: unless-stopped
     depends_on:
