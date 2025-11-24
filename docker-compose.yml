@@ -8,6 +8,29 @@
     volumes:
       - ./config/mosquitto:/mosquitto/config:ro
 
+  mosquitto-mc:
+    image: cedalo/management-center:2.6.2   # or another tag from Docker Hub
+    container_name: mosquitto-mc
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    environment:
+      # Broker connection from the MC backend (inside the same Docker network)
+      - CEDALO_MC_BROKER_ID=mosquitto
+      - CEDALO_MC_BROKER_NAME=Mosquitto
+      - CEDALO_MC_BROKER_URL=mqtt://mosquitto:1883
+      - CEDALO_MC_BROKER_USERNAME=
+      - CEDALO_MC_BROKER_PASSWORD=
+
+      # Login for the Management Center UI itself
+      - CEDALO_MC_USERNAME=steve
+      - CEDALO_MC_PASSWORD=TechDevs!0
+
+      # Hostname the frontend uses to talk to the backend (0.0.0.0 works in containers)
+      - CEDALO_MC_PROXY_HOST=0.0.0.0
+    ports:
+      - "8088:8088"
+
   seq:
     image: datalust/seq:latest
     container_name: seq
