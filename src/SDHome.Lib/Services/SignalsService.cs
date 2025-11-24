@@ -42,7 +42,7 @@ namespace SDHome.Lib.Services
 
         public async Task HandleMqttMessageAsync(string topic, string payload, CancellationToken cancellationToken = default)
         {
-            if (topic.StartsWith("sdhome/bridge")) return;
+            // if (topic.StartsWith("sdhome/bridge")) return;
 
 
             if (string.IsNullOrWhiteSpace(payload))
