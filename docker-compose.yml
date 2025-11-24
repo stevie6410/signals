@@ -91,7 +91,7 @@
 
     ports:
       # host:container — ASP.NET Core in container listens on 8080 by default
-      - "5000:8080"
+      - "5000:8081"
  
   zigbee2mqtt:
     image: koenkk/zigbee2mqtt
