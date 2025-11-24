@@ -95,6 +95,7 @@
   zigbee2mqtt:
     image: koenkk/zigbee2mqtt
     container_name: zigbee2mqtt
+    profiles: ["zigbee"]
     volumes:
       - .config/zigbee:/app/data
     environment:
@@ -111,18 +112,33 @@
     container_name: n8n
     restart: unless-stopped
     ports:
-      - "5678:5678"
+      - "5678:5678"   # optional once proxy works
     environment:
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - N8N_SECURE_COOKIE=false
       - GENERIC_TIMEZONE=Europe/London
-      - N8N_DIAGNOSTICS_ENABLED=false
-      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
-      - N8N_RUNNERS_ENABLED=true
-      - DB_SQLITE_POOL_SIZE=8
+      - N8N_PATH=/n8n/
+      # optional but nice when accessed via domain:
+      # - N8N_EDITOR_BASE_URL=https://mydomain.com/n8n/
+      # - N8N_DIAGNOSTICS_ENABLED=false
     volumes:
       - n8n_data:/home/node/.n8n
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"       # add 443 later for HTTPS
+    depends_on:
+      - n8n
+      - zigbee2mqtt
+      - seq
+      - grafana
+      - prometheus
+    volumes:
+      - ./config/nginx/conf.d:/etc/nginx/conf.d:ro
 
 volumes:
   seq-data:
