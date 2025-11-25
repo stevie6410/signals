@@ -1,11 +1,11 @@
-﻿using Microsoft.Extensions.Options;
+﻿using System.Text.Json;
+using System.Net.Http.Json;
+using Microsoft.Extensions.Options;
 using Prometheus;
 using SDHome.Lib.Data;
 using SDHome.Lib.Mappers;
 using SDHome.Lib.Models;
 using Serilog;
-using System.Net.Http.Json;
-using System.Text.Json;
 
 namespace SDHome.Lib.Services
 {
@@ -15,12 +15,14 @@ namespace SDHome.Lib.Services
             Metrics.CreateCounter("signals_events_total", "Total number of SignalEvents received.");
 
         private static readonly Counter ReceivedEventsByDeviceTotal =
-            Metrics.CreateCounter("signals_events_by_device_total",
+            Metrics.CreateCounter(
+                "signals_events_by_device_total",
                 "Total SignalEvents received per device.",
                 new[] { "device" });
 
         private readonly ISignalEventMapper _mapper;
         private readonly ISignalEventsRepository _repository;
+        private readonly ISignalEventProjectionService _projectionService;
         private readonly HttpClient _httpClient;
         private readonly IOptions<WebhookOptions> _webhookOptions;
         private readonly string? _n8nWebhookUrl;
@@ -30,7 +32,8 @@ namespace SDHome.Lib.Services
             ISignalEventMapper mapper,
             ISignalEventsRepository repository,
             HttpClient httpClient,
-            IOptions<WebhookOptions> webhookOptions)
+            IOptions<WebhookOptions> webhookOptions,
+            ISignalEventProjectionService projectionService)
         {
             _mapper = mapper;
             _repository = repository;
@@ -38,12 +41,16 @@ namespace SDHome.Lib.Services
             _webhookOptions = webhookOptions;
             _n8nWebhookUrl = webhookOptions.Value.Main;
             _n8nWebhookTestUrl = webhookOptions.Value.Test;
+            _projectionService = projectionService;
         }
 
-        public async Task HandleMqttMessageAsync(string topic, string payload, CancellationToken cancellationToken = default)
+        public async Task HandleMqttMessageAsync(
+            string topic,
+            string payload,
+            CancellationToken cancellationToken = default)
         {
-            // if (topic.StartsWith("sdhome/bridge")) return;
-
+            // If you want to ignore bridge noise, uncomment:
+            // if (topic.StartsWith("sdhome/bridge", StringComparison.OrdinalIgnoreCase)) return;
 
             if (string.IsNullOrWhiteSpace(payload))
             {
@@ -56,26 +63,26 @@ namespace SDHome.Lib.Services
                 using var doc = JsonDocument.Parse(payload);
                 var root = doc.RootElement.Clone();
 
-                SignalEvent ev;
-                if (root.ValueKind == JsonValueKind.Array)
-                {
-                    ev = _mapper.MapArrayPayload(topic, root);
-                }
-                else
-                {
-                    ev = _mapper.Map(topic, root);
-                }
+                SignalEvent ev = root.ValueKind == JsonValueKind.Array
+                    ? _mapper.MapArrayPayload(topic, root)
+                    : _mapper.Map(topic, root);
 
                 ReceivedEventsTotal.Inc();
                 ReceivedEventsByDeviceTotal.WithLabels(ev.DeviceId).Inc();
 
+                // 1. Persist raw event to signal_events
                 await _repository.InsertAsync(ev, cancellationToken);
 
+                // 2. Project into specialized tables (triggers, readings, etc.)
+                await _projectionService.ProjectAsync(ev, cancellationToken);
+
+                // 3. Forward to webhook (n8n) if configured
                 if (!string.IsNullOrWhiteSpace(_n8nWebhookUrl))
                 {
                     await SendToWebhookAsync(_n8nWebhookUrl!, ev, cancellationToken);
                 }
 
+                // 4. Pretty-print to console for local debugging
                 PrintPrettyEvent(ev);
             }
             catch (JsonException)
@@ -92,10 +99,10 @@ namespace SDHome.Lib.Services
         {
             string emoji = ev.Capability switch
             {
-                "button" => "🔵",
+                "button"      => "🔵",
                 "temperature" => "🌡️",
-                "motion" => "🏃",
-                _ => "📡"
+                "motion"      => "🏃",
+                _             => "📡"
             };
 
             Console.ForegroundColor = ConsoleColor.Cyan;
@@ -113,7 +120,10 @@ namespace SDHome.Lib.Services
             Console.WriteLine();
         }
 
-        private async Task SendToWebhookAsync(string webhookUrl, SignalEvent ev, CancellationToken ct)
+        private async Task SendToWebhookAsync(
+            string webhookUrl,
+            SignalEvent ev,
+            CancellationToken ct)
         {
             try
             {
@@ -121,8 +131,10 @@ namespace SDHome.Lib.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    Log.Warning("n8n webhook returned {StatusCode} for SignalEvent {Id}",
-                        response.StatusCode, ev.Id);
+                    Log.Warning(
+                        "n8n webhook returned {StatusCode} for SignalEvent {Id}",
+                        response.StatusCode,
+                        ev.Id);
                 }
             }
             catch (Exception ex)

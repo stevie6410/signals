@@ -14,43 +14,47 @@ namespace SDHome.Lib.Data
         {
             // SQL Server DDL: use IF OBJECT_ID IS NULL instead of CREATE TABLE IF NOT EXISTS
             const string sql = @"
-                            IF OBJECT_ID('dbo.signal_events', 'U') IS NULL
+                           IF OBJECT_ID('dbo.trigger_events', 'U') IS NULL
                             BEGIN
-                                CREATE TABLE dbo.signal_events (
-                                    id              uniqueidentifier    NOT NULL PRIMARY KEY,
-                                    timestamp_utc   datetime2(7)        NOT NULL,          -- store UTC DateTime
-                                    source          nvarchar(200)       NOT NULL,
-                                    device_id       nvarchar(200)       NOT NULL,
-                                    location        nvarchar(200)       NULL,
-                                    capability      nvarchar(200)       NOT NULL,
-                                    event_type      nvarchar(200)       NOT NULL,
-                                    event_sub_type  nvarchar(200)       NULL,
-                                    value           float               NULL,
-                                    raw_topic       nvarchar(4000)      NOT NULL,
-                                    raw_payload     nvarchar(max)       NOT NULL           -- JSON as NVARCHAR(MAX)
-                                );
+                            CREATE TABLE dbo.trigger_events (
+                            id uniqueidentifier NOT NULL PRIMARY KEY,
+                            signal_event_id uniqueidentifier NOT NULL,
+                            timestamp_utc datetime2(7) NOT NULL,
+                            device_id nvarchar(200) NOT NULL,
+                            capability nvarchar(200) NOT NULL,
+                            trigger_type nvarchar(100) NOT NULL,
+                            trigger_sub_type nvarchar(100) NULL,
+                            value_bit bit NULL
+                            );
+
+                            CREATE INDEX ix_trigger_events_device_timestamp
+                                ON dbo.trigger_events (device_id, timestamp_utc DESC);
+
+                            CREATE INDEX ix_trigger_events_type_timestamp
+                                ON dbo.trigger_events (trigger_type, timestamp_utc DESC);
+
+
                             END;
 
-                            IF NOT EXISTS (
-                                SELECT 1
-                                FROM sys.indexes
-                                WHERE name = 'ix_signal_events_timestamp'
-                                  AND object_id = OBJECT_ID('dbo.signal_events')
-                            )
+                            IF OBJECT_ID('dbo.sensor_readings', 'U') IS NULL
                             BEGIN
-                                CREATE INDEX ix_signal_events_timestamp
-                                    ON dbo.signal_events (timestamp_utc);
-                            END;
+                            CREATE TABLE dbo.sensor_readings (
+                            id uniqueidentifier NOT NULL PRIMARY KEY,
+                            signal_event_id uniqueidentifier NOT NULL,
+                            timestamp_utc datetime2(7) NOT NULL,
+                            device_id nvarchar(200) NOT NULL,
+                            metric nvarchar(100) NOT NULL,
+                            value float NOT NULL,
+                            unit nvarchar(50) NULL
+                            );
 
-                            IF NOT EXISTS (
-                                SELECT 1
-                                FROM sys.indexes
-                                WHERE name = 'ix_signal_events_device_timestamp'
-                                  AND object_id = OBJECT_ID('dbo.signal_events')
-                            )
-                            BEGIN
-                                CREATE INDEX ix_signal_events_device_timestamp
-                                    ON dbo.signal_events (device_id, timestamp_utc DESC);
+                            CREATE INDEX ix_sensor_readings_device_metric_ts
+                                ON dbo.sensor_readings (device_id, metric, timestamp_utc DESC);
+
+                            CREATE INDEX ix_sensor_readings_metric_ts
+                                ON dbo.sensor_readings (metric, timestamp_utc DESC);
+
+
                             END;
                             ";
 
@@ -63,7 +67,7 @@ namespace SDHome.Lib.Data
 
         public async Task InsertAsync(SignalEvent ev, CancellationToken cancellationToken = default)
         {
-                    const string sql = @"
+            const string sql = @"
         INSERT INTO dbo.signal_events
             (id, timestamp_utc, source, device_id, location, capability,
              event_type, event_sub_type, value, raw_topic, raw_payload)
