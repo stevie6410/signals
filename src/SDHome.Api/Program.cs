@@ -1,4 +1,5 @@
-﻿using SDHome.Lib.Data;
+﻿using Microsoft.AspNetCore.Builder;
+using SDHome.Lib.Data;
 using SDHome.Lib.Mappers;
 using SDHome.Lib.Models;
 using SDHome.Lib.Services;
@@ -16,10 +17,16 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// NSwag OpenAPI generator
+builder.Services.AddOpenApiDocument(options =>
+{
+    options.Title = "SDHome API";
+    options.Version = "v1";
+    options.DocumentName = "v1";  // <-- matches nswag.json documentName
+});
 
 builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection("Signals:Mqtt"));
 builder.Services.Configure<PostgresOptions>(builder.Configuration.GetSection("Signals:Postgres"));
@@ -69,7 +76,7 @@ using (var scope = app.Services.CreateScope())
 
 // Configure the HTTP request pipeline.
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI();   // serves /swagger
 
 app.UseHttpsRedirection();
 
