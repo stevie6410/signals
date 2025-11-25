@@ -105,6 +105,7 @@ SELECT TOP (@Take)
        id, timestamp_utc, source, device_id, location, capability,
        event_type, event_sub_type, value, raw_topic, raw_payload
 FROM dbo.signal_events
+WHERE device_id NOT LIKE 'bridge/%'
 ORDER BY timestamp_utc DESC;";
 
             var list = new List<SignalEvent>();
