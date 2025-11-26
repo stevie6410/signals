@@ -26,6 +26,12 @@ public class SignalsMqttWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!_mqttOptions.Enabled)
+        {
+            _logger.LogInformation("MQTT is disabled in configuration. Skipping MQTT connection.");
+            return;
+        }
+
         var factory = new MqttClientFactory();
         var client = factory.CreateMqttClient();
 

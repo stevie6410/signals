@@ -48,6 +48,11 @@ export class LayoutComponent {
       routerLink: '/triggers'
     },
     {
+      label: 'Devices',
+      icon: 'pi pi-box',
+      routerLink: '/devices'
+    },
+    {
       separator: true
     },
     {

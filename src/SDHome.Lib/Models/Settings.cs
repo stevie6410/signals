@@ -2,6 +2,7 @@
 {
     public class MqttOptions
     {
+        public bool Enabled { get; set; } = true;
         public string Host { get; set; } = "";
         public int Port { get; set; }
         public string TopicFilter { get; set; } = "sdhome/#";

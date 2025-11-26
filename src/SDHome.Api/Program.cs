@@ -53,9 +53,14 @@ builder.Services.AddSingleton<ITriggerEventsRepository>(_ =>
 builder.Services.AddSingleton<ISensorReadingsRepository>(_ =>
     new SqlServerSensorReadingsRepository(connectionString));
 
+builder.Services.AddSingleton<IDeviceRepository>(_ =>
+    new SqlServerDeviceRepository(connectionString));
+
 // Mapper & query service
 builder.Services.AddSingleton<ISignalEventMapper, SignalEventMapper>();
 builder.Services.AddScoped<ISignalQueryService, SignalQueryService>();
+builder.Services.AddScoped<IDeviceService, DeviceService>();
+builder.Services.AddScoped<DatabaseSeeder>();
 
 // Projection service (SignalEvent -> triggers + readings, etc.)
 builder.Services.AddSingleton<ISignalEventProjectionService, SignalEventProjectionService>();
@@ -63,6 +68,17 @@ builder.Services.AddSingleton<ISignalEventProjectionService, SignalEventProjecti
 // HttpClient + main SignalsService + MQTT worker
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<ISignalsService, SignalsService>();
+
+// MQTT Client for DeviceService - only register if MQTT is enabled
+var mqttOptions = builder.Configuration.GetSection("Signals:Mqtt").Get<MqttOptions>();
+if (mqttOptions?.Enabled == true)
+{
+    builder.Services.AddSingleton(sp =>
+    {
+        var factory = new MQTTnet.MqttClientFactory();
+        return factory.CreateMqttClient();
+    });
+}
 
 // Only add background workers if not in NSwag environment
 if (!builder.Environment.IsEnvironment("NSwag"))
@@ -81,17 +97,23 @@ if (!app.Environment.IsEnvironment("NSwag"))
 {
     using (var scope = app.Services.CreateScope())
     {
-        var repo = scope.ServiceProvider.GetRequiredService<ISignalEventsRepository>() as SqlServerSignalEventsRepository;
-        if (repo != null)
+        var signalRepo = scope.ServiceProvider.GetRequiredService<ISignalEventsRepository>() as SqlServerSignalEventsRepository;
+        if (signalRepo != null)
         {
-            repo.EnsureCreatedAsync(CancellationToken.None).GetAwaiter().GetResult();
+            signalRepo.EnsureCreatedAsync(CancellationToken.None).GetAwaiter().GetResult();
+        }
+
+        var deviceRepo = scope.ServiceProvider.GetRequiredService<IDeviceRepository>() as SqlServerDeviceRepository;
+        if (deviceRepo != null)
+        {
+            deviceRepo.EnsureCreatedAsync().GetAwaiter().GetResult();
         }
     }
 }
 
 // Configure the HTTP request pipeline.
-app.UseSwagger();
-app.UseSwaggerUI();   // serves /swagger
+app.UseOpenApi();        // serves OpenAPI/Swagger document
+app.UseSwaggerUi();      // serves Swagger UI at /swagger
 
 app.UseHttpsRedirection();
 

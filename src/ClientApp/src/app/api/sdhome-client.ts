@@ -17,6 +17,349 @@ export const API_BASE_URL = new InjectionToken<string>('API_BASE_URL');
 @Injectable({
     providedIn: 'root'
 })
+export class DevicesApiService {
+    private http: HttpClient;
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
+        this.http = http;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getDevices(): Observable<Device[]> {
+        let url_ = this.baseUrl + "/api/Devices";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetDevices(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetDevices(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<Device[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<Device[]>;
+        }));
+    }
+
+    protected processGetDevices(response: HttpResponseBase): Observable<Device[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(Device.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getDevice(deviceId: string): Observable<Device> {
+        let url_ = this.baseUrl + "/api/Devices/{deviceId}";
+        if (deviceId === undefined || deviceId === null)
+            throw new globalThis.Error("The parameter 'deviceId' must be defined.");
+        url_ = url_.replace("{deviceId}", encodeURIComponent("" + deviceId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetDevice(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetDevice(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<Device>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<Device>;
+        }));
+    }
+
+    protected processGetDevice(response: HttpResponseBase): Observable<Device> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = Device.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    updateDevice(deviceId: string, device: Device): Observable<Device> {
+        let url_ = this.baseUrl + "/api/Devices/{deviceId}";
+        if (deviceId === undefined || deviceId === null)
+            throw new globalThis.Error("The parameter 'deviceId' must be defined.");
+        url_ = url_.replace("{deviceId}", encodeURIComponent("" + deviceId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(device);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("put", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processUpdateDevice(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processUpdateDevice(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<Device>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<Device>;
+        }));
+    }
+
+    protected processUpdateDevice(response: HttpResponseBase): Observable<Device> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = Device.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getDevicesByRoom(room: string): Observable<Device[]> {
+        let url_ = this.baseUrl + "/api/Devices/by-room/{room}";
+        if (room === undefined || room === null)
+            throw new globalThis.Error("The parameter 'room' must be defined.");
+        url_ = url_.replace("{room}", encodeURIComponent("" + room));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetDevicesByRoom(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetDevicesByRoom(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<Device[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<Device[]>;
+        }));
+    }
+
+    protected processGetDevicesByRoom(response: HttpResponseBase): Observable<Device[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(Device.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getDevicesByType(deviceType: DeviceType): Observable<Device[]> {
+        let url_ = this.baseUrl + "/api/Devices/by-type/{deviceType}";
+        if (deviceType === undefined || deviceType === null)
+            throw new globalThis.Error("The parameter 'deviceType' must be defined.");
+        url_ = url_.replace("{deviceType}", encodeURIComponent("" + deviceType));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetDevicesByType(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetDevicesByType(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<Device[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<Device[]>;
+        }));
+    }
+
+    protected processGetDevicesByType(response: HttpResponseBase): Observable<Device[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(Device.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    syncDevices(): Observable<FileResponse> {
+        let url_ = this.baseUrl + "/api/Devices/sync";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/octet-stream"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processSyncDevices(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processSyncDevices(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<FileResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<FileResponse>;
+        }));
+    }
+
+    protected processSyncDevices(response: HttpResponseBase): Observable<FileResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+}
+
+@Injectable({
+    providedIn: 'root'
+})
 export class ReadingsApiService {
     private http: HttpClient;
     private baseUrl: string;
@@ -143,6 +486,72 @@ export class ReadingsApiService {
             }
             return _observableOf(result200);
             }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+}
+
+@Injectable({
+    providedIn: 'root'
+})
+export class SeedApiService {
+    private http: HttpClient;
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
+        this.http = http;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    seedDatabase(): Observable<FileResponse> {
+        let url_ = this.baseUrl + "/api/Seed";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/octet-stream"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processSeedDatabase(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processSeedDatabase(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<FileResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<FileResponse>;
+        }));
+    }
+
+    protected processSeedDatabase(response: HttpResponseBase): Observable<FileResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
         } else if (status !== 200 && status !== 204) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
@@ -358,6 +767,129 @@ export class TriggersApiService {
         }
         return _observableOf(null as any);
     }
+}
+
+export class Device implements IDevice {
+    deviceId?: string;
+    friendlyName?: string;
+    ieeeAddress?: string | undefined;
+    modelId?: string | undefined;
+    manufacturer?: string | undefined;
+    description?: string | undefined;
+    powerSource?: boolean;
+    deviceType?: DeviceType | undefined;
+    room?: string | undefined;
+    capabilities?: string[];
+    attributes?: { [key: string]: any; };
+    lastSeen?: Date | undefined;
+    isAvailable?: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+
+    constructor(data?: IDevice) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.deviceId = _data["deviceId"];
+            this.friendlyName = _data["friendlyName"];
+            this.ieeeAddress = _data["ieeeAddress"];
+            this.modelId = _data["modelId"];
+            this.manufacturer = _data["manufacturer"];
+            this.description = _data["description"];
+            this.powerSource = _data["powerSource"];
+            this.deviceType = _data["deviceType"];
+            this.room = _data["room"];
+            if (Array.isArray(_data["capabilities"])) {
+                this.capabilities = [] as any;
+                for (let item of _data["capabilities"])
+                    this.capabilities!.push(item);
+            }
+            if (_data["attributes"]) {
+                this.attributes = {} as any;
+                for (let key in _data["attributes"]) {
+                    if (_data["attributes"].hasOwnProperty(key))
+                        (this.attributes as any)![key] = _data["attributes"][key];
+                }
+            }
+            this.lastSeen = _data["lastSeen"] ? new Date(_data["lastSeen"].toString()) : undefined as any;
+            this.isAvailable = _data["isAvailable"];
+            this.createdAt = _data["createdAt"] ? new Date(_data["createdAt"].toString()) : undefined as any;
+            this.updatedAt = _data["updatedAt"] ? new Date(_data["updatedAt"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): Device {
+        data = typeof data === 'object' ? data : {};
+        let result = new Device();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["deviceId"] = this.deviceId;
+        data["friendlyName"] = this.friendlyName;
+        data["ieeeAddress"] = this.ieeeAddress;
+        data["modelId"] = this.modelId;
+        data["manufacturer"] = this.manufacturer;
+        data["description"] = this.description;
+        data["powerSource"] = this.powerSource;
+        data["deviceType"] = this.deviceType;
+        data["room"] = this.room;
+        if (Array.isArray(this.capabilities)) {
+            data["capabilities"] = [];
+            for (let item of this.capabilities)
+                data["capabilities"].push(item);
+        }
+        if (this.attributes) {
+            data["attributes"] = {};
+            for (let key in this.attributes) {
+                if (this.attributes.hasOwnProperty(key))
+                    (data["attributes"] as any)[key] = (this.attributes as any)[key];
+            }
+        }
+        data["lastSeen"] = this.lastSeen ? this.lastSeen.toISOString() : undefined as any;
+        data["isAvailable"] = this.isAvailable;
+        data["createdAt"] = this.createdAt ? this.createdAt.toISOString() : undefined as any;
+        data["updatedAt"] = this.updatedAt ? this.updatedAt.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IDevice {
+    deviceId?: string;
+    friendlyName?: string;
+    ieeeAddress?: string | undefined;
+    modelId?: string | undefined;
+    manufacturer?: string | undefined;
+    description?: string | undefined;
+    powerSource?: boolean;
+    deviceType?: DeviceType | undefined;
+    room?: string | undefined;
+    capabilities?: string[];
+    attributes?: { [key: string]: any; };
+    lastSeen?: Date | undefined;
+    isAvailable?: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
+export enum DeviceType {
+    Light = 0,
+    Switch = 1,
+    Sensor = 2,
+    Climate = 3,
+    Lock = 4,
+    Cover = 5,
+    Fan = 6,
+    Other = 7,
 }
 
 export class SensorReading implements ISensorReading {
@@ -586,6 +1118,13 @@ export interface ITriggerEvent {
     triggerType?: string;
     triggerSubType?: string | undefined;
     value?: boolean | undefined;
+}
+
+export interface FileResponse {
+    data: Blob;
+    status: number;
+    fileName?: string;
+    headers?: { [name: string]: any };
 }
 
 export class SwaggerException extends Error {
