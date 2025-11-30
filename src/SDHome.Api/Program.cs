@@ -38,6 +38,17 @@ builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection("Met
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 
+
+// NSwag OpenAPI generator
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApiDocument(options =>
+{
+    options.Title = "SDHome API";
+    options.Version = "v1";
+    options.DocumentName = "v1";  // <-- matches nswag.json documentName
+});
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 // Repositories
