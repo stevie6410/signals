@@ -36,6 +36,52 @@ public class DevicesController(IDeviceService deviceService, IRealtimeEventBroad
     }
 
     /// <summary>
+    /// Get full device definition with capabilities from Zigbee2MQTT
+    /// </summary>
+    [HttpGet("{deviceId}/definition")]
+    public async Task<ActionResult<DeviceDefinition>> GetDeviceDefinition(string deviceId)
+    {
+        try
+        {
+            var definition = await _deviceService.GetDeviceDefinitionAsync(deviceId);
+            if (definition == null)
+            {
+                return NotFound(new { error = "Device not found" });
+            }
+            return Ok(definition);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Failed to get device definition", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Set device state (send command to device)
+    /// </summary>
+    [HttpPost("{deviceId}/state")]
+    public async Task<ActionResult> SetDeviceState(string deviceId, [FromBody] SetDeviceStateRequest request)
+    {
+        try
+        {
+            await _deviceService.SetDeviceStateAsync(deviceId, request.State);
+            return Ok(new { success = true, deviceId });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Failed to set device state", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Update device attributes (room, device type, etc.)
     /// </summary>
     [HttpPut("{deviceId}")]

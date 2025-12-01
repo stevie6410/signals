@@ -23,6 +23,12 @@ public class DeviceEntity
     
     public string? IeeeAddress { get; set; }
     public string? ModelId { get; set; }
+    
+    /// <summary>
+    /// The Zigbee2MQTT definition model (e.g., "WXKG11LM") - used for device images
+    /// </summary>
+    public string? Model { get; set; }
+    
     public string? Manufacturer { get; set; }
     public string? Description { get; set; }
     public bool PowerSource { get; set; }
@@ -58,6 +64,7 @@ public class DeviceEntity
             DisplayName = DisplayName,
             IeeeAddress = IeeeAddress,
             ModelId = ModelId,
+            Model = Model,
             Manufacturer = Manufacturer,
             Description = Description,
             PowerSource = PowerSource,
@@ -87,6 +94,7 @@ public class DeviceEntity
             DisplayName = model.DisplayName,
             IeeeAddress = model.IeeeAddress,
             ModelId = model.ModelId,
+            Model = model.Model,
             Manufacturer = model.Manufacturer,
             Description = model.Description,
             PowerSource = model.PowerSource,

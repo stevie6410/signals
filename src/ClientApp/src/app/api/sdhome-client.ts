@@ -188,6 +188,116 @@ export class DevicesApiService {
         return _observableOf(null as any);
     }
 
+    getDeviceDefinition(deviceId: string): Observable<DeviceDefinition> {
+        let url_ = this.baseUrl + "/api/Devices/{deviceId}/definition";
+        if (deviceId === undefined || deviceId === null)
+            throw new globalThis.Error("The parameter 'deviceId' must be defined.");
+        url_ = url_.replace("{deviceId}", encodeURIComponent("" + deviceId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetDeviceDefinition(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetDeviceDefinition(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<DeviceDefinition>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<DeviceDefinition>;
+        }));
+    }
+
+    protected processGetDeviceDefinition(response: HttpResponseBase): Observable<DeviceDefinition> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = DeviceDefinition.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    setDeviceState(deviceId: string, request: SetDeviceStateRequest): Observable<FileResponse> {
+        let url_ = this.baseUrl + "/api/Devices/{deviceId}/state";
+        if (deviceId === undefined || deviceId === null)
+            throw new globalThis.Error("The parameter 'deviceId' must be defined.");
+        url_ = url_.replace("{deviceId}", encodeURIComponent("" + deviceId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/octet-stream"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processSetDeviceState(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processSetDeviceState(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<FileResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<FileResponse>;
+        }));
+    }
+
+    protected processSetDeviceState(response: HttpResponseBase): Observable<FileResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
     renameDevice(deviceId: string, request: RenameDeviceRequest): Observable<Device> {
         let url_ = this.baseUrl + "/api/Devices/{deviceId}/rename";
         if (deviceId === undefined || deviceId === null)
@@ -1740,7 +1850,9 @@ export class Device implements IDevice {
     effectiveDisplayName?: string;
     ieeeAddress?: string | undefined;
     modelId?: string | undefined;
+    model?: string | undefined;
     manufacturer?: string | undefined;
+    imageUrl?: string | undefined;
     description?: string | undefined;
     powerSource?: boolean;
     deviceType?: DeviceType | undefined;
@@ -1771,7 +1883,9 @@ export class Device implements IDevice {
             this.effectiveDisplayName = _data["effectiveDisplayName"];
             this.ieeeAddress = _data["ieeeAddress"];
             this.modelId = _data["modelId"];
+            this.model = _data["model"];
             this.manufacturer = _data["manufacturer"];
+            this.imageUrl = _data["imageUrl"];
             this.description = _data["description"];
             this.powerSource = _data["powerSource"];
             this.deviceType = _data["deviceType"];
@@ -1812,7 +1926,9 @@ export class Device implements IDevice {
         data["effectiveDisplayName"] = this.effectiveDisplayName;
         data["ieeeAddress"] = this.ieeeAddress;
         data["modelId"] = this.modelId;
+        data["model"] = this.model;
         data["manufacturer"] = this.manufacturer;
+        data["imageUrl"] = this.imageUrl;
         data["description"] = this.description;
         data["powerSource"] = this.powerSource;
         data["deviceType"] = this.deviceType;
@@ -1846,7 +1962,9 @@ export interface IDevice {
     effectiveDisplayName?: string;
     ieeeAddress?: string | undefined;
     modelId?: string | undefined;
+    model?: string | undefined;
     manufacturer?: string | undefined;
+    imageUrl?: string | undefined;
     description?: string | undefined;
     powerSource?: boolean;
     deviceType?: DeviceType | undefined;
@@ -1962,6 +2080,326 @@ export interface IZone {
     childZones?: Zone[];
     fullPath?: string;
     depth?: number;
+}
+
+export class DeviceDefinition implements IDeviceDefinition {
+    deviceId?: string;
+    friendlyName?: string;
+    displayName?: string | undefined;
+    ieeeAddress?: string | undefined;
+    modelId?: string | undefined;
+    manufacturer?: string | undefined;
+    description?: string | undefined;
+    imageUrl?: string | undefined;
+    deviceType?: string | undefined;
+    powerSource?: string | undefined;
+    isAvailable?: boolean;
+    lastSeen?: Date | undefined;
+    capabilities?: DeviceCapability[];
+    currentState?: { [key: string]: any; };
+
+    constructor(data?: IDeviceDefinition) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.deviceId = _data["deviceId"];
+            this.friendlyName = _data["friendlyName"];
+            this.displayName = _data["displayName"];
+            this.ieeeAddress = _data["ieeeAddress"];
+            this.modelId = _data["modelId"];
+            this.manufacturer = _data["manufacturer"];
+            this.description = _data["description"];
+            this.imageUrl = _data["imageUrl"];
+            this.deviceType = _data["deviceType"];
+            this.powerSource = _data["powerSource"];
+            this.isAvailable = _data["isAvailable"];
+            this.lastSeen = _data["lastSeen"] ? new Date(_data["lastSeen"].toString()) : undefined as any;
+            if (Array.isArray(_data["capabilities"])) {
+                this.capabilities = [] as any;
+                for (let item of _data["capabilities"])
+                    this.capabilities!.push(DeviceCapability.fromJS(item));
+            }
+            if (_data["currentState"]) {
+                this.currentState = {} as any;
+                for (let key in _data["currentState"]) {
+                    if (_data["currentState"].hasOwnProperty(key))
+                        (this.currentState as any)![key] = _data["currentState"][key];
+                }
+            }
+        }
+    }
+
+    static fromJS(data: any): DeviceDefinition {
+        data = typeof data === 'object' ? data : {};
+        let result = new DeviceDefinition();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["deviceId"] = this.deviceId;
+        data["friendlyName"] = this.friendlyName;
+        data["displayName"] = this.displayName;
+        data["ieeeAddress"] = this.ieeeAddress;
+        data["modelId"] = this.modelId;
+        data["manufacturer"] = this.manufacturer;
+        data["description"] = this.description;
+        data["imageUrl"] = this.imageUrl;
+        data["deviceType"] = this.deviceType;
+        data["powerSource"] = this.powerSource;
+        data["isAvailable"] = this.isAvailable;
+        data["lastSeen"] = this.lastSeen ? this.lastSeen.toISOString() : undefined as any;
+        if (Array.isArray(this.capabilities)) {
+            data["capabilities"] = [];
+            for (let item of this.capabilities)
+                data["capabilities"].push(item ? item.toJSON() : undefined as any);
+        }
+        if (this.currentState) {
+            data["currentState"] = {};
+            for (let key in this.currentState) {
+                if (this.currentState.hasOwnProperty(key))
+                    (data["currentState"] as any)[key] = (this.currentState as any)[key];
+            }
+        }
+        return data;
+    }
+}
+
+export interface IDeviceDefinition {
+    deviceId?: string;
+    friendlyName?: string;
+    displayName?: string | undefined;
+    ieeeAddress?: string | undefined;
+    modelId?: string | undefined;
+    manufacturer?: string | undefined;
+    description?: string | undefined;
+    imageUrl?: string | undefined;
+    deviceType?: string | undefined;
+    powerSource?: string | undefined;
+    isAvailable?: boolean;
+    lastSeen?: Date | undefined;
+    capabilities?: DeviceCapability[];
+    currentState?: { [key: string]: any; };
+}
+
+export class DeviceCapability implements IDeviceCapability {
+    type?: string;
+    name?: string;
+    property?: string;
+    description?: string | undefined;
+    unit?: string | undefined;
+    access?: CapabilityAccess;
+    values?: string[] | undefined;
+    valueMin?: number | undefined;
+    valueMax?: number | undefined;
+    valueStep?: number | undefined;
+    valueOn?: any | undefined;
+    valueOff?: any | undefined;
+    features?: DeviceCapability[] | undefined;
+    category?: string | undefined;
+    controlType?: ControlType;
+
+    constructor(data?: IDeviceCapability) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.type = _data["type"];
+            this.name = _data["name"];
+            this.property = _data["property"];
+            this.description = _data["description"];
+            this.unit = _data["unit"];
+            this.access = _data["access"] ? CapabilityAccess.fromJS(_data["access"]) : undefined as any;
+            if (Array.isArray(_data["values"])) {
+                this.values = [] as any;
+                for (let item of _data["values"])
+                    this.values!.push(item);
+            }
+            this.valueMin = _data["valueMin"];
+            this.valueMax = _data["valueMax"];
+            this.valueStep = _data["valueStep"];
+            this.valueOn = _data["valueOn"];
+            this.valueOff = _data["valueOff"];
+            if (Array.isArray(_data["features"])) {
+                this.features = [] as any;
+                for (let item of _data["features"])
+                    this.features!.push(DeviceCapability.fromJS(item));
+            }
+            this.category = _data["category"];
+            this.controlType = _data["controlType"];
+        }
+    }
+
+    static fromJS(data: any): DeviceCapability {
+        data = typeof data === 'object' ? data : {};
+        let result = new DeviceCapability();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["type"] = this.type;
+        data["name"] = this.name;
+        data["property"] = this.property;
+        data["description"] = this.description;
+        data["unit"] = this.unit;
+        data["access"] = this.access ? this.access.toJSON() : undefined as any;
+        if (Array.isArray(this.values)) {
+            data["values"] = [];
+            for (let item of this.values)
+                data["values"].push(item);
+        }
+        data["valueMin"] = this.valueMin;
+        data["valueMax"] = this.valueMax;
+        data["valueStep"] = this.valueStep;
+        data["valueOn"] = this.valueOn;
+        data["valueOff"] = this.valueOff;
+        if (Array.isArray(this.features)) {
+            data["features"] = [];
+            for (let item of this.features)
+                data["features"].push(item ? item.toJSON() : undefined as any);
+        }
+        data["category"] = this.category;
+        data["controlType"] = this.controlType;
+        return data;
+    }
+}
+
+export interface IDeviceCapability {
+    type?: string;
+    name?: string;
+    property?: string;
+    description?: string | undefined;
+    unit?: string | undefined;
+    access?: CapabilityAccess;
+    values?: string[] | undefined;
+    valueMin?: number | undefined;
+    valueMax?: number | undefined;
+    valueStep?: number | undefined;
+    valueOn?: any | undefined;
+    valueOff?: any | undefined;
+    features?: DeviceCapability[] | undefined;
+    category?: string | undefined;
+    controlType?: ControlType;
+}
+
+export class CapabilityAccess implements ICapabilityAccess {
+    canRead?: boolean;
+    canWrite?: boolean;
+    isPublished?: boolean;
+
+    constructor(data?: ICapabilityAccess) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.canRead = _data["canRead"];
+            this.canWrite = _data["canWrite"];
+            this.isPublished = _data["isPublished"];
+        }
+    }
+
+    static fromJS(data: any): CapabilityAccess {
+        data = typeof data === 'object' ? data : {};
+        let result = new CapabilityAccess();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["canRead"] = this.canRead;
+        data["canWrite"] = this.canWrite;
+        data["isPublished"] = this.isPublished;
+        return data;
+    }
+}
+
+export interface ICapabilityAccess {
+    canRead?: boolean;
+    canWrite?: boolean;
+    isPublished?: boolean;
+}
+
+export enum ControlType {
+    Toggle = "Toggle",
+    Slider = "Slider",
+    Number = "Number",
+    Select = "Select",
+    ColorPicker = "ColorPicker",
+    Text = "Text",
+    ReadOnly = "ReadOnly",
+    Button = "Button",
+    Composite = "Composite",
+}
+
+export class SetDeviceStateRequest implements ISetDeviceStateRequest {
+    state?: { [key: string]: any; };
+
+    constructor(data?: ISetDeviceStateRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (_data["state"]) {
+                this.state = {} as any;
+                for (let key in _data["state"]) {
+                    if (_data["state"].hasOwnProperty(key))
+                        (this.state as any)![key] = _data["state"][key];
+                }
+            }
+        }
+    }
+
+    static fromJS(data: any): SetDeviceStateRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetDeviceStateRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (this.state) {
+            data["state"] = {};
+            for (let key in this.state) {
+                if (this.state.hasOwnProperty(key))
+                    (data["state"] as any)[key] = (this.state as any)[key];
+            }
+        }
+        return data;
+    }
+}
+
+export interface ISetDeviceStateRequest {
+    state?: { [key: string]: any; };
 }
 
 export class RenameDeviceRequest implements IRenameDeviceRequest {

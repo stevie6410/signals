@@ -123,4 +123,27 @@ public class SignalREventBroadcaster(
             logger.LogError(ex, "Failed to broadcast device pairing progress");
         }
     }
+
+    public async Task BroadcastDeviceStateUpdateAsync(DeviceStateUpdate stateUpdate)
+    {
+        try
+        {
+            // Broadcast to device-specific group for instant UI updates
+            if (!string.IsNullOrEmpty(stateUpdate.DeviceId))
+            {
+                await hubContext.Clients.Group($"device:{stateUpdate.DeviceId}")
+                    .SendAsync("DeviceStateUpdate", stateUpdate);
+                
+                // Also broadcast to all clients (for dashboard/list views)
+                await hubContext.Clients.All.SendAsync("DeviceStateUpdate", stateUpdate);
+            }
+            
+            logger.LogDebug("Broadcasted device state update for {DeviceId}: {PropertyCount} properties", 
+                stateUpdate.DeviceId, stateUpdate.State.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to broadcast device state update");
+        }
+    }
 }

@@ -5,13 +5,19 @@
 namespace SDHome.Lib.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class AddDeviceDisplayName : Migration
+    public partial class AddDeviceModel : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
                 name: "DisplayName",
+                table: "devices",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "Model",
                 table: "devices",
                 type: "nvarchar(max)",
                 nullable: true);
@@ -22,6 +28,10 @@ namespace SDHome.Lib.Data.Migrations
         {
             migrationBuilder.DropColumn(
                 name: "DisplayName",
+                table: "devices");
+
+            migrationBuilder.DropColumn(
+                name: "Model",
                 table: "devices");
         }
     }

@@ -1,10 +1,11 @@
-SELECT TOP (1000) [id]
-      ,[name]
-      ,[description]
-      ,[icon]
-      ,[color]
-      ,[parent_zone_id]
-      ,[sort_order]
-      ,[created_at]
-      ,[updated_at]
-  FROM [signals].[dbo].[zones]
+-- Create the login (if it doesn't exist)
+CREATE LOGIN appUser WITH PASSWORD = 'Password2';
+
+-- Switch to the signals database
+USE signals;
+
+-- Create the user mapped to the login
+CREATE USER appUser FOR LOGIN appUser;
+
+-- Grant permissions
+ALTER ROLE db_owner ADD MEMBER appUser;

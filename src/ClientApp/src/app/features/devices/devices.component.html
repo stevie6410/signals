@@ -103,8 +103,8 @@
     </div>
   </div>
 
-  <!-- Devices Grid -->
-  <div class="devices-grid">
+  <!-- Devices by Zone -->
+  <div class="devices-container">
     @if (loading()) {
       <div class="loading-state">
         <div class="spinner"></div>
@@ -117,39 +117,48 @@
         <span class="empty-hint">Click "Sync with Zigbee" to discover devices from your Zigbee2MQTT bridge</span>
       </div>
     } @else {
-      @for (device of filteredDevices(); track trackDevice($index, device)) {
-        <div class="device-card" [class.offline]="!device.isAvailable">
-          <div class="device-header">
-            <div class="device-icon">{{ getDeviceIcon(device.deviceType) }}</div>
-            <div class="device-status" [class.online]="device.isAvailable" [class.offline]="!device.isAvailable">
-              {{ device.isAvailable ? 'Online' : 'Offline' }}
-            </div>
+      @for (group of devicesByZone(); track group.zoneName) {
+        <section class="zone-section">
+          <div class="zone-header">
+            <h2 class="zone-title">
+              <span class="zone-icon">📍</span>
+              {{ group.zoneName }}
+            </h2>
+            <span class="zone-count">{{ group.devices.length }} devices</span>
           </div>
-
-          <div class="device-body">
-            <h3 class="device-name">{{ device.friendlyName || 'Unknown Device' }}</h3>
-
-            <div class="device-meta">
-              @if (device.manufacturer) {
-                <span class="meta-item">🏭 {{ device.manufacturer }}</span>
-              }
-              @if (device.room) {
-                <span class="meta-item">📍 {{ device.room }}</span>
-              }
-              @if (device.deviceType !== undefined) {
-                <span class="tag" [ngClass]="'tag-' + getDeviceTypeClass(device.deviceType)">
-                  {{ getDeviceTypeName(device.deviceType) }}
-                </span>
-              }
-            </div>
+          <div class="devices-grid">
+            @for (device of group.devices; track trackDevice($index, device)) {
+              <div class="device-card" [class.offline]="!device.isAvailable" (click)="viewDevice(device)">
+                <div class="card-content">
+                  <div class="device-image-container">
+                    @if (device.imageUrl) {
+                      <img [src]="device.imageUrl" [alt]="getDisplayName(device)" class="device-image" />
+                    } @else {
+                      <div class="device-icon-placeholder">
+                        {{ getDeviceIcon(device.deviceType) }}
+                      </div>
+                    }
+                    <div class="status-indicator" [class.online]="device.isAvailable" [class.offline]="!device.isAvailable"></div>
+                  </div>
+                  <div class="device-info">
+                    <h3 class="device-name">{{ getDisplayName(device) }}</h3>
+                    <p class="device-model">{{ device.manufacturer }} {{ device.modelId }}</p>
+                    @if (device.deviceType !== undefined) {
+                      <span class="device-type-badge" [ngClass]="'type-' + getDeviceTypeClass(device.deviceType)">
+                        {{ getDeviceTypeName(device.deviceType) }}
+                      </span>
+                    }
+                  </div>
+                </div>
+                <div class="card-actions">
+                  <button class="action-btn" (click)="editDevice(device); $event.stopPropagation()">
+                    ✏️
+                  </button>
+                </div>
+              </div>
+            }
           </div>
-
-          <div class="device-footer">
-            <button class="btn btn-text" (click)="editDevice(device)">
-              ✏️ Edit
-            </button>
-          </div>
-        </div>
+        </section>
       }
     }
   </div>

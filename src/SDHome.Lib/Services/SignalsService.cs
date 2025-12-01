@@ -59,6 +59,16 @@ public class SignalsService(
             // 2. Broadcast to real-time clients (SignalR)
             await realtimeBroadcaster.BroadcastSignalEventAsync(ev);
 
+            // 2b. Broadcast device state update for instant UI updates
+            if (root.ValueKind == JsonValueKind.Object && !string.IsNullOrEmpty(ev.DeviceId))
+            {
+                var stateUpdate = ExtractDeviceStateUpdate(ev.DeviceId, root);
+                if (stateUpdate.State.Count > 0)
+                {
+                    await realtimeBroadcaster.BroadcastDeviceStateUpdateAsync(stateUpdate);
+                }
+            }
+
             // 3. Project into specialized tables (triggers, readings, etc.)
             var projectedData = await projectionService.ProjectAsync(ev, cancellationToken);
 
@@ -79,6 +89,35 @@ public class SignalsService(
         {
             Log.Error(ex, "Error handling MQTT message on {Topic} with payload {Payload}", topic, payload);
         }
+    }
+
+    /// <summary>
+    /// Extract device state from MQTT payload for real-time UI updates
+    /// </summary>
+    private static DeviceStateUpdate ExtractDeviceStateUpdate(string deviceId, JsonElement payload)
+    {
+        var state = new Dictionary<string, object?>();
+
+        foreach (var prop in payload.EnumerateObject())
+        {
+            // Convert JsonElement to appropriate .NET type
+            state[prop.Name] = prop.Value.ValueKind switch
+            {
+                JsonValueKind.String => prop.Value.GetString(),
+                JsonValueKind.Number => prop.Value.TryGetInt64(out var l) ? l : prop.Value.GetDouble(),
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.Null => null,
+                _ => prop.Value.ToString()
+            };
+        }
+
+        return new DeviceStateUpdate
+        {
+            DeviceId = deviceId,
+            State = state,
+            TimestampUtc = DateTime.UtcNow
+        };
     }
 
     private static void PrintPrettyEvent(SignalEvent ev)

@@ -24,8 +24,27 @@ public class Device
     public string EffectiveDisplayName => DisplayName ?? FriendlyName;
     
     public string? IeeeAddress { get; set; }
+    
+    /// <summary>
+    /// The Zigbee model_id (e.g., "lumi.remote.b1acn01")
+    /// </summary>
     public string? ModelId { get; set; }
+    
+    /// <summary>
+    /// The Zigbee2MQTT definition model (e.g., "WXKG11LM") - used for device images
+    /// </summary>
+    public string? Model { get; set; }
+    
     public string? Manufacturer { get; set; }
+    
+    /// <summary>
+    /// Gets the device image URL from Zigbee2MQTT's device image repository.
+    /// Uses the definition Model (not ModelId) as that matches the image filenames.
+    /// Spaces in model names are replaced with hyphens to match the URL format.
+    /// </summary>
+    public string? ImageUrl => !string.IsNullOrEmpty(Model) 
+        ? $"https://www.zigbee2mqtt.io/images/devices/{Uri.EscapeDataString(Model.Replace(' ', '-'))}.png" 
+        : null;
     public string? Description { get; set; }
     public bool PowerSource { get; set; }
     public DeviceType? DeviceType { get; set; }

@@ -1,0 +1,401 @@
+<div class="device-detail-page">
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-top">
+      <button class="back-btn" (click)="goBack()">
+        ← Back
+      </button>
+      <div class="header-actions">
+        @if (device(); as d) {
+          <span class="status-badge" [class.online]="d.isAvailable" [class.offline]="!d.isAvailable">
+            {{ d.isAvailable ? '● Online' : '○ Offline' }}
+          </span>
+        }
+        <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading() || loadingDefinition()">
+          🔄 Refresh
+        </button>
+      </div>
+    </div>
+    <div class="header-main">
+      @if (definition(); as def) {
+        @if (def.imageUrl) {
+          <div class="device-image-large">
+            <img [src]="def.imageUrl" [alt]="displayName()" />
+          </div>
+        }
+      }
+      <div class="device-info">
+        <h1>{{ displayName() }}</h1>
+        @if (definition(); as def) {
+          <p class="subtitle">
+            {{ def.manufacturer }} {{ def.modelId }}
+          </p>
+          @if (def.description) {
+            <p class="description">{{ def.description }}</p>
+          }
+        }
+      </div>
+    </div>
+  </header>
+
+  <!-- Device Information Card -->
+  @if (device(); as d) {
+    <section class="card device-info-card">
+      <div class="card-header">
+        <h2>ℹ️ Device Information</h2>
+        @if (!editingSettings()) {
+          <button class="btn btn-secondary btn-sm" (click)="startEditSettings()">
+            ✏️ Edit
+          </button>
+        }
+      </div>
+      <div class="card-body">
+        @if (editingSettings()) {
+          <div class="edit-form">
+            <div class="form-group">
+              <label>Display Name</label>
+              <input
+                type="text"
+                [ngModel]="editedDevice().displayName"
+                (ngModelChange)="updateDisplayName($event)"
+                placeholder="Friendly name for this device"
+              />
+            </div>
+            <div class="form-group">
+              <label>Device Type</label>
+              <select
+                [ngModel]="editedDevice().deviceType"
+                (ngModelChange)="updateDeviceType($event)"
+              >
+                <option [ngValue]="undefined">Auto-detect</option>
+                @for (type of deviceTypes; track type) {
+                  <option [ngValue]="type">{{ getDeviceTypeLabel(type) }}</option>
+                }
+              </select>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-secondary" (click)="cancelEditSettings()">Cancel</button>
+              <button class="btn btn-primary" (click)="saveSettings()" [disabled]="saving()">
+                @if (saving()) {
+                  <span class="spinner-sm"></span>
+                }
+                Save
+              </button>
+            </div>
+          </div>
+        } @else {
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Device ID</span>
+              <span class="info-value monospace">{{ d.deviceId }}</span>
+            </div>
+            @if (d.friendlyName) {
+              <div class="info-item">
+                <span class="info-label">Friendly Name</span>
+                <span class="info-value">{{ d.friendlyName }}</span>
+              </div>
+            }
+            @if (d.ieeeAddress) {
+              <div class="info-item">
+                <span class="info-label">IEEE Address</span>
+                <span class="info-value monospace">{{ d.ieeeAddress }}</span>
+              </div>
+            }
+            @if (d.zone) {
+              <div class="info-item">
+                <span class="info-label">Zone</span>
+                <span class="info-value">{{ d.zone.icon }} {{ d.zone.name }}</span>
+              </div>
+            }
+            @if (d.deviceType !== undefined && d.deviceType !== null) {
+              <div class="info-item">
+                <span class="info-label">Device Type</span>
+                <span class="info-value">{{ getDeviceTypeLabel(d.deviceType) }}</span>
+              </div>
+            }
+            @if (d.manufacturer) {
+              <div class="info-item">
+                <span class="info-label">Manufacturer</span>
+                <span class="info-value">{{ d.manufacturer }}</span>
+              </div>
+            }
+            @if (d.modelId) {
+              <div class="info-item">
+                <span class="info-label">Model</span>
+                <span class="info-value">{{ d.modelId }}</span>
+              </div>
+            }
+            @if (d.powerSource !== undefined && d.powerSource !== null) {
+              <div class="info-item">
+                <span class="info-label">Power Source</span>
+                <span class="info-value">{{ d.powerSource ? '🔌 Mains' : '🔋 Battery' }}</span>
+              </div>
+            }
+            @if (d.lastSeen) {
+              <div class="info-item">
+                <span class="info-label">Last Seen</span>
+                <span class="info-value">{{ d.lastSeen | date:'medium' }}</span>
+              </div>
+            }
+            @if (d.createdAt) {
+              <div class="info-item">
+                <span class="info-label">Added</span>
+                <span class="info-value">{{ d.createdAt | date:'mediumDate' }}</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  @if (error(); as err) {
+    <div class="error-banner">
+      <span>⚠️ {{ err }}</span>
+      <button (click)="error.set(null)">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <span>Loading device...</span>
+    </div>
+  } @else if (device(); as device) {
+    <div class="device-content">
+      <!-- Quick Actions Card (Primary Controls) -->
+      @if (quickActions().length > 0) {
+        <section class="card actions-card primary-actions">
+          <div class="card-header">
+            <h2>🎮 Quick Actions</h2>
+          </div>
+          <div class="card-body">
+            <div class="quick-actions-grid">
+              @for (cap of quickActions(); track cap.property) {
+                <div class="quick-action-item">
+                  @switch (cap.controlType) {
+                    @case (ControlType.Toggle) {
+                      <button
+                        class="big-toggle-btn"
+                        [class.on]="isOn(cap)"
+                        (click)="toggleValue(cap)"
+                        [disabled]="saving()"
+                      >
+                        <span class="toggle-icon">{{ isOn(cap) ? '💡' : '⚫' }}</span>
+                        <span class="toggle-label">{{ cap.name }}</span>
+                        <span class="toggle-state">{{ isOn(cap) ? 'ON' : 'OFF' }}</span>
+                      </button>
+                    }
+                    @case (ControlType.Slider) {
+                      <div class="big-slider-control">
+                        <label class="slider-label">{{ cap.name }}</label>
+                        <div class="slider-row">
+                          <input
+                            type="range"
+                            [min]="cap.valueMin ?? 0"
+                            [max]="cap.valueMax ?? 100"
+                            [step]="cap.valueStep || 1"
+                            [ngModel]="getCapabilityValue(cap)"
+                            (ngModelChange)="setCapabilityValue(cap, $event)"
+                            (change)="sendCapabilityState(cap)"
+                            class="big-slider"
+                          />
+                          <span class="slider-value-display">
+                            {{ getCapabilityValue(cap) ?? 0 }}{{ cap.unit || '' }}
+                          </span>
+                        </div>
+                      </div>
+                    }
+                    @default {
+                      <div class="action-control">
+                        <label>{{ cap.name }}</label>
+                        <span class="current-value">{{ getCapabilityValue(cap) ?? '-' }}</span>
+                      </div>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+      }
+
+      <!-- Current State Card -->
+      <section class="card state-card">
+        <div class="card-header">
+          <h2>📊 Current State</h2>
+          <span class="state-hint">Live sensor readings</span>
+        </div>
+        <div class="card-body">
+          @if (readOnlyCapabilities().length > 0 || (definition()?.currentState | keyvalue)?.length) {
+            <div class="state-grid">
+              @for (cap of readOnlyCapabilities(); track cap.property) {
+                <div class="state-item" [class.highlight]="cap.property === 'state'">
+                  <span class="state-icon">{{ getStateIcon(cap) }}</span>
+                  <div class="state-details">
+                    <span class="state-label">{{ cap.name }}</span>
+                    <span class="state-value">
+                      {{ formatStateValue(cap) }}
+                      @if (cap.unit) {
+                        <span class="unit">{{ cap.unit }}</span>
+                      }
+                    </span>
+                  </div>
+                </div>
+              }
+              <!-- Also show any state properties not in capabilities -->
+              @if (definition()?.currentState; as state) {
+                @for (entry of getExtraStateEntries() | keyvalue; track entry.key) {
+                  <div class="state-item">
+                    <span class="state-icon">📋</span>
+                    <div class="state-details">
+                      <span class="state-label">{{ formatPropertyName(entry.key) }}</span>
+                      <span class="state-value">{{ entry.value }}</span>
+                    </div>
+                  </div>
+                }
+              }
+            </div>
+          } @else {
+            <div class="empty-state">
+              <span>No state data available</span>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Other Actions Card (Settings/Config) -->
+      @if (otherActions().length > 0) {
+        <section class="card actions-card secondary-actions">
+          <div class="card-header">
+            <h2>⚙️ Device Settings</h2>
+            <span class="state-hint">Configure device behavior</span>
+          </div>
+          <div class="card-body">
+            <div class="settings-list">
+              @for (cap of otherActions(); track cap.property) {
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <span class="setting-name">{{ cap.name }}</span>
+                    @if (cap.description) {
+                      <span class="setting-desc">{{ cap.description }}</span>
+                    }
+                  </div>
+                  <div class="setting-control">
+                    @switch (cap.controlType) {
+                      @case (ControlType.Toggle) {
+                        <button
+                          class="toggle-btn"
+                          [class.on]="isOn(cap)"
+                          (click)="toggleValue(cap)"
+                          [disabled]="saving()"
+                        >
+                          {{ isOn(cap) ? 'ON' : 'OFF' }}
+                        </button>
+                      }
+                      @case (ControlType.Slider) {
+                        <div class="slider-control">
+                          <input
+                            type="range"
+                            [min]="cap.valueMin ?? 0"
+                            [max]="cap.valueMax ?? 100"
+                            [step]="cap.valueStep || 1"
+                            [ngModel]="getCapabilityValue(cap)"
+                            (ngModelChange)="setCapabilityValue(cap, $event)"
+                            (change)="sendCapabilityState(cap)"
+                          />
+                          <span class="slider-value">
+                            {{ getCapabilityValue(cap) }}{{ cap.unit || '' }}
+                          </span>
+                        </div>
+                      }
+                      @case (ControlType.Number) {
+                        <div class="number-control">
+                          <input
+                            type="number"
+                            [min]="cap.valueMin ?? 0"
+                            [max]="cap.valueMax ?? 100"
+                            [step]="cap.valueStep || 1"
+                            [ngModel]="getCapabilityValue(cap)"
+                            (ngModelChange)="setCapabilityValue(cap, $event)"
+                          />
+                          @if (cap.unit) {
+                            <span class="unit">{{ cap.unit }}</span>
+                          }
+                          <button
+                            class="btn btn-sm btn-primary"
+                            (click)="sendCapabilityState(cap)"
+                            [disabled]="saving()"
+                          >
+                            Set
+                          </button>
+                        </div>
+                      }
+                      @case (ControlType.Select) {
+                        <select
+                          [ngModel]="getCapabilityValue(cap)"
+                          (ngModelChange)="setAndSendCapability(cap, $event)"
+                          [disabled]="saving()"
+                        >
+                          <option value="" disabled>Select...</option>
+                          @for (val of cap.values; track val) {
+                            <option [value]="val">{{ val }}</option>
+                          }
+                        </select>
+                      }
+                      @case (ControlType.Text) {
+                        <div class="text-control">
+                          <input
+                            type="text"
+                            [ngModel]="getCapabilityValue(cap)"
+                            (ngModelChange)="setCapabilityValue(cap, $event)"
+                          />
+                          <button
+                            class="btn btn-sm btn-primary"
+                            (click)="sendCapabilityState(cap)"
+                            [disabled]="saving()"
+                          >
+                            Set
+                          </button>
+                        </div>
+                      }
+                      @default {
+                        <span class="readonly-value">
+                          {{ getCapabilityValue(cap) ?? '-' }}
+                        </span>
+                      }
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </section>
+      }
+
+      <!-- Recent Activity Card -->
+      <section class="card activity-card">
+        <div class="card-header">
+          <h2>📜 Recent Activity</h2>
+        </div>
+        <div class="card-body">
+          @if (recentSignals().length === 0) {
+            <div class="empty-state">
+              <span>No recent signals from this device</span>
+            </div>
+          } @else {
+            <div class="activity-list">
+              @for (signal of recentSignals(); track signal.id) {
+                <div class="activity-item">
+                  <span class="activity-time">{{ formatTimestamp(signal.timestampUtc) }}</span>
+                  <span class="activity-type">{{ signal.eventType || signal.capability }}</span>
+                  <span class="activity-value">{{ signal.value }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+  }
+</div>

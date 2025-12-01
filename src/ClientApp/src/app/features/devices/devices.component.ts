@@ -1,11 +1,17 @@
 import { Component, OnInit, OnDestroy, signal, computed, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { DevicesApiService, Device, DeviceType } from '../../api/sdhome-client';
+import { DevicesApiService, Device, DeviceType, Zone } from '../../api/sdhome-client';
 import { SignalRService, DeviceSyncProgress, DevicePairingDevice } from '../../core/services/signalr.service';
 import { PairingDialogComponent } from './pairing-dialog/pairing-dialog.component';
+
+interface DevicesByZone {
+  zone: Zone | null;
+  zoneName: string;
+  devices: Device[];
+}
 
 @Component({
   selector: 'app-devices',
@@ -18,6 +24,7 @@ export class DevicesComponent implements OnInit, OnDestroy {
   private apiService = inject(DevicesApiService);
   private signalRService = inject(SignalRService);
   private http = inject(HttpClient);
+  private router = inject(Router);
 
   devices = signal<Device[]>([]);
   loading = signal(false);
@@ -101,8 +108,10 @@ export class DevicesComponent implements OnInit, OnDestroy {
     if (search) {
       result = result.filter(d =>
         d.friendlyName?.toLowerCase().includes(search) ||
+        d.displayName?.toLowerCase().includes(search) ||
         d.manufacturer?.toLowerCase().includes(search) ||
         d.room?.toLowerCase().includes(search) ||
+        d.zone?.name?.toLowerCase().includes(search) ||
         (d.deviceType?.toString() || '').toLowerCase().includes(search)
       );
     }
@@ -112,6 +121,34 @@ export class DevicesComponent implements OnInit, OnDestroy {
     }
 
     return result;
+  });
+
+  // Devices grouped by zone
+  devicesByZone = computed(() => {
+    const devices = this.filteredDevices();
+    const groups = new Map<number | null, DevicesByZone>();
+
+    for (const device of devices) {
+      const zoneId = device.zoneId ?? null;
+
+      if (!groups.has(zoneId)) {
+        groups.set(zoneId, {
+          zone: device.zone ?? null,
+          zoneName: device.zone?.name || 'Unassigned',
+          devices: []
+        });
+      }
+      groups.get(zoneId)!.devices.push(device);
+    }
+
+    // Sort: zones with names first (alphabetically), then unassigned last
+    const sorted = Array.from(groups.values()).sort((a, b) => {
+      if (a.zone === null && b.zone !== null) return 1;
+      if (a.zone !== null && b.zone === null) return -1;
+      return a.zoneName.localeCompare(b.zoneName);
+    });
+
+    return sorted;
   });
 
   // Stats
@@ -323,5 +360,15 @@ export class DevicesComponent implements OnInit, OnDestroy {
 
   trackDevice(index: number, device: Device): string {
     return device.deviceId ?? index.toString();
+  }
+
+  viewDevice(device: Device) {
+    if (device.deviceId) {
+      this.router.navigate(['/devices', device.deviceId]);
+    }
+  }
+
+  getDisplayName(device: Device): string {
+    return device.displayName || device.friendlyName || 'Unknown Device';
   }
 }

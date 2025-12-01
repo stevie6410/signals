@@ -50,6 +50,12 @@ export interface DevicePairingProgress {
   error?: string;
 }
 
+export interface DeviceStateUpdate {
+  deviceId: string;
+  state: Record<string, any>;
+  timestampUtc: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -66,6 +72,7 @@ export class SignalRService {
   private _triggerHistory = signal<TriggerEvent[]>([]);
   private _deviceSyncProgress = signal<DeviceSyncProgress | null>(null);
   private _devicePairingProgress = signal<DevicePairingProgress | null>(null);
+  private _deviceStateUpdates = signal<Map<string, DeviceStateUpdate>>(new Map());
 
   // Public readable signals
   readonly connectionState = this._connectionState.asReadonly();
@@ -77,6 +84,7 @@ export class SignalRService {
   readonly triggerHistory = this._triggerHistory.asReadonly();
   readonly deviceSyncProgress = this._deviceSyncProgress.asReadonly();
   readonly devicePairingProgress = this._devicePairingProgress.asReadonly();
+  readonly deviceStateUpdates = this._deviceStateUpdates.asReadonly();
 
   // Computed values
   readonly isConnected = computed(() => this._connectionState() === 'connected');
@@ -167,6 +175,16 @@ export class SignalRService {
       console.log('Device pairing progress:', data);
       this._devicePairingProgress.set(data);
     });
+
+    // Device state update handler - for instant UI updates
+    this.hubConnection.on('DeviceStateUpdate', (data: DeviceStateUpdate) => {
+      console.log('Device state update:', data.deviceId, data.state);
+      this._deviceStateUpdates.update(map => {
+        const newMap = new Map(map);
+        newMap.set(data.deviceId, data);
+        return newMap;
+      });
+    });
   }
 
   private setupConnectionStateHandlers(): void {
@@ -244,6 +262,18 @@ export class SignalRService {
 
   clearPairingProgress(): void {
     this._devicePairingProgress.set(null);
+  }
+
+  getDeviceState(deviceId: string): DeviceStateUpdate | undefined {
+    return this._deviceStateUpdates().get(deviceId);
+  }
+
+  clearDeviceState(deviceId: string): void {
+    this._deviceStateUpdates.update(map => {
+      const newMap = new Map(map);
+      newMap.delete(deviceId);
+      return newMap;
+    });
   }
 
   async subscribeToDeviceSync(syncId: string): Promise<void> {

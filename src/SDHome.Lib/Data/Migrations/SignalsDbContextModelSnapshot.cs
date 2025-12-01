@@ -79,6 +79,9 @@ namespace SDHome.Lib.Data.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("manufacturer");
 
+                    b.Property<string>("Model")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ModelId")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)")

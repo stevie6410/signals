@@ -23,6 +23,7 @@ public class DeviceService(
     {
         return await db.Devices
             .AsNoTracking()
+            .Include(d => d.Zone)
             .OrderBy(d => d.FriendlyName)
             .Select(d => d.ToModel())
             .ToListAsync();
@@ -32,6 +33,7 @@ public class DeviceService(
     {
         var entity = await db.Devices
             .AsNoTracking()
+            .Include(d => d.Zone)
             .FirstOrDefaultAsync(d => d.DeviceId == deviceId);
         
         return entity?.ToModel();
@@ -323,6 +325,7 @@ public class DeviceService(
                         existing.FriendlyName = device.FriendlyName;
                         existing.IeeeAddress = device.IeeeAddress;
                         existing.ModelId = device.ModelId;
+                        existing.Model = device.Model;
                         existing.Manufacturer = device.Manufacturer;
                         existing.Description = device.Description;
                         existing.Capabilities = JsonSerializer.Serialize(device.Capabilities);
@@ -493,6 +496,7 @@ public class DeviceService(
                         existing!.FriendlyName = device.FriendlyName;
                         existing.IeeeAddress = device.IeeeAddress;
                         existing.ModelId = device.ModelId;
+                        existing.Model = device.Model;
                         existing.Manufacturer = device.Manufacturer;
                         existing.Description = device.Description;
                         existing.Capabilities = JsonSerializer.Serialize(device.Capabilities);
@@ -586,6 +590,7 @@ public class DeviceService(
             FriendlyName = zigbeeDevice.friendly_name,
             IeeeAddress = zigbeeDevice.ieee_address,
             ModelId = zigbeeDevice.model_id,
+            Model = zigbeeDevice.definition?.model,
             Manufacturer = zigbeeDevice.manufacturer ?? zigbeeDevice.definition?.vendor,
             Description = zigbeeDevice.description ?? zigbeeDevice.definition?.description,
             PowerSource = zigbeeDevice.power_source != "Battery",
@@ -968,6 +973,305 @@ public class DeviceService(
             CurrentDevice = device,
             DiscoveredDevices = [.. _discoveredDevices]
         });
+    }
+
+    #endregion
+
+    #region Device Definition and State
+
+    public async Task<DeviceDefinition?> GetDeviceDefinitionAsync(string deviceId)
+    {
+        if (!_mqttOptions.Enabled)
+        {
+            logger.LogWarning("MQTT is disabled. Cannot fetch device definition.");
+            throw new InvalidOperationException("MQTT is disabled in configuration");
+        }
+
+        var device = await GetDeviceAsync(deviceId);
+        if (device == null)
+        {
+            return null;
+        }
+
+        // Fetch full device info from Zigbee2MQTT
+        var factory = new MqttClientFactory();
+        using var client = factory.CreateMqttClient();
+
+        var options = new MqttClientOptionsBuilder()
+            .WithClientId("SDHomeDefinition-" + Guid.NewGuid().ToString("N")[..8])
+            .WithTcpServer(_mqttOptions.Host, _mqttOptions.Port)
+            .WithCleanSession(false)
+            .WithTimeout(TimeSpan.FromSeconds(10))
+            .Build();
+
+        var baseTopic = _mqttOptions.BaseTopic.TrimEnd('/');
+        var devicesTopic = $"{baseTopic}/bridge/devices";
+        var stateTopic = $"{baseTopic}/{deviceId}";
+
+        Zigbee2MqttDevice? zigbeeDevice = null;
+        Dictionary<string, object?>? currentState = null;
+
+        var deviceListReceived = new TaskCompletionSource<bool>();
+        var stateReceived = new TaskCompletionSource<bool>();
+
+        client.ApplicationMessageReceivedAsync += async e =>
+        {
+            var topic = e.ApplicationMessage.Topic;
+            var payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
+
+            if (topic == devicesTopic)
+            {
+                try
+                {
+                    var devices = JsonSerializer.Deserialize<List<Zigbee2MqttDevice>>(payload);
+                    zigbeeDevice = devices?.FirstOrDefault(d => 
+                        d.friendly_name == deviceId || d.ieee_address == deviceId);
+                    deviceListReceived.TrySetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error parsing device list");
+                    deviceListReceived.TrySetResult(false);
+                }
+            }
+            else if (topic == stateTopic)
+            {
+                try
+                {
+                    currentState = JsonSerializer.Deserialize<Dictionary<string, object?>>(payload,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    stateReceived.TrySetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error parsing device state");
+                    stateReceived.TrySetResult(false);
+                }
+            }
+
+            await Task.CompletedTask;
+        };
+
+        await client.ConnectAsync(options);
+
+        try
+        {
+            // Subscribe to both topics
+            await client.SubscribeAsync(new MqttClientSubscribeOptionsBuilder()
+                .WithTopicFilter(devicesTopic)
+                .WithTopicFilter(stateTopic)
+                .Build());
+
+            // Wait for both responses (with timeout)
+            var timeout = Task.Delay(TimeSpan.FromSeconds(5));
+            var deviceTask = deviceListReceived.Task;
+            var stateTask = stateReceived.Task;
+
+            // Wait for device list (required)
+            var completedTask = await Task.WhenAny(deviceTask, timeout);
+            if (completedTask == timeout)
+            {
+                logger.LogWarning("Timeout waiting for device list from Zigbee2MQTT");
+            }
+
+            // Also try to get current state (optional - may not be retained)
+            await Task.WhenAny(stateTask, Task.Delay(1000));
+        }
+        finally
+        {
+            await client.DisconnectAsync();
+        }
+
+        // Build the definition
+        var definition = new DeviceDefinition
+        {
+            DeviceId = device.DeviceId,
+            FriendlyName = device.FriendlyName,
+            DisplayName = device.DisplayName,
+            IeeeAddress = device.IeeeAddress,
+            ModelId = device.ModelId,
+            Manufacturer = device.Manufacturer,
+            Description = device.Description ?? zigbeeDevice?.definition?.description,
+            DeviceType = device.DeviceType?.ToString(),
+            PowerSource = device.PowerSource ? "Mains" : "Battery",
+            IsAvailable = device.IsAvailable,
+            LastSeen = device.LastSeen,
+            ImageUrl = device.ImageUrl,
+            CurrentState = currentState ?? new Dictionary<string, object?>()
+        };
+
+        // Map exposes to capabilities
+        if (zigbeeDevice?.definition?.exposes != null)
+        {
+            definition.Capabilities = MapExposesToCapabilities(zigbeeDevice.definition.exposes);
+        }
+
+        return definition;
+    }
+
+    private List<DeviceCapability> MapExposesToCapabilities(List<Expose> exposes, string? parentCategory = null)
+    {
+        var capabilities = new List<DeviceCapability>();
+
+        foreach (var expose in exposes)
+        {
+            // Determine the category based on type
+            var category = parentCategory ?? expose.type;
+
+            if (expose.features != null && expose.features.Count > 0)
+            {
+                // Composite type with nested features
+                var nestedCapabilities = MapExposesToCapabilities(expose.features, category);
+                
+                // Add nested features directly if this is a known composite type (light, switch, etc.)
+                if (expose.type is "light" or "switch" or "lock" or "climate" or "cover" or "fan")
+                {
+                    capabilities.AddRange(nestedCapabilities);
+                }
+                else
+                {
+                    // Create a composite capability
+                    capabilities.Add(new DeviceCapability
+                    {
+                        Type = expose.type ?? "composite",
+                        Name = expose.name ?? expose.type ?? "Unknown",
+                        Property = expose.property ?? expose.type ?? "",
+                        Description = expose.description,
+                        Category = category,
+                        ControlType = ControlType.Composite,
+                        Features = nestedCapabilities,
+                        Access = ParseAccess(expose.access)
+                    });
+                }
+            }
+            else if (!string.IsNullOrEmpty(expose.property))
+            {
+                // Simple property
+                capabilities.Add(new DeviceCapability
+                {
+                    Type = expose.type ?? "unknown",
+                    Name = FormatPropertyName(expose.name ?? expose.property),
+                    Property = expose.property,
+                    Description = expose.description,
+                    Unit = expose.unit,
+                    Category = category,
+                    Access = ParseAccess(expose.access),
+                    Values = ParseEnumValues(expose.values),
+                    ValueMin = expose.value_min,
+                    ValueMax = expose.value_max,
+                    ValueStep = expose.value_step,
+                    ValueOn = expose.ExtensionData?.TryGetValue("value_on", out var von) == true ? ParseJsonElement(von) : null,
+                    ValueOff = expose.ExtensionData?.TryGetValue("value_off", out var voff) == true ? ParseJsonElement(voff) : null,
+                    ControlType = DetermineControlType(expose)
+                });
+            }
+        }
+
+        return capabilities;
+    }
+
+    private static CapabilityAccess ParseAccess(int? access)
+    {
+        if (access == null) return new CapabilityAccess { CanRead = true };
+        
+        return new CapabilityAccess
+        {
+            CanRead = (access.Value & 1) != 0,
+            CanWrite = (access.Value & 2) != 0,
+            IsPublished = (access.Value & 4) != 0
+        };
+    }
+
+    private static List<string>? ParseEnumValues(JsonElement? values)
+    {
+        if (values == null || values.Value.ValueKind != JsonValueKind.Array)
+            return null;
+
+        return values.Value.EnumerateArray()
+            .Select(v => v.ToString())
+            .ToList();
+    }
+
+    private static object? ParseJsonElement(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number => element.TryGetInt32(out var i) ? i : element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => element.ToString()
+        };
+    }
+
+    private static string FormatPropertyName(string property)
+    {
+        // Convert snake_case to Title Case
+        return string.Join(" ", property.Split('_')
+            .Select(word => char.ToUpper(word[0]) + word[1..].ToLower()));
+    }
+
+    private static ControlType DetermineControlType(Expose expose)
+    {
+        // Check if writable
+        var canWrite = expose.access.HasValue && (expose.access.Value & 2) != 0;
+
+        return expose.type switch
+        {
+            "binary" => canWrite ? ControlType.Toggle : ControlType.ReadOnly,
+            "numeric" when expose.value_min != null && expose.value_max != null && canWrite => ControlType.Slider,
+            "numeric" when canWrite => ControlType.Number,
+            "numeric" => ControlType.ReadOnly,
+            "enum" when canWrite => ControlType.Select,
+            "enum" => ControlType.ReadOnly,
+            "text" when canWrite => ControlType.Text,
+            "text" => ControlType.ReadOnly,
+            "composite" => ControlType.Composite,
+            _ => canWrite ? ControlType.Text : ControlType.ReadOnly
+        };
+    }
+
+    public async Task SetDeviceStateAsync(string deviceId, Dictionary<string, object> state)
+    {
+        if (!_mqttOptions.Enabled)
+        {
+            throw new InvalidOperationException("MQTT is disabled in configuration");
+        }
+
+        var factory = new MqttClientFactory();
+        using var client = factory.CreateMqttClient();
+
+        var options = new MqttClientOptionsBuilder()
+            .WithClientId("SDHomeSetState-" + Guid.NewGuid().ToString("N")[..8])
+            .WithTcpServer(_mqttOptions.Host, _mqttOptions.Port)
+            .WithCleanSession()
+            .WithTimeout(TimeSpan.FromSeconds(10))
+            .Build();
+
+        await client.ConnectAsync(options);
+
+        try
+        {
+            var baseTopic = _mqttOptions.BaseTopic.TrimEnd('/');
+            var setTopic = $"{baseTopic}/{deviceId}/set";
+            var payload = JsonSerializer.Serialize(state);
+
+            logger.LogInformation("Setting device state for {DeviceId}: {Payload}", deviceId, payload);
+
+            var message = new MqttApplicationMessageBuilder()
+                .WithTopic(setTopic)
+                .WithPayload(payload)
+                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
+                .Build();
+
+            await client.PublishAsync(message);
+
+            logger.LogInformation("Device state set successfully for {DeviceId}", deviceId);
+        }
+        finally
+        {
+            await client.DisconnectAsync();
+        }
     }
 
     #endregion
