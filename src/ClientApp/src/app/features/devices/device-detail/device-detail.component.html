@@ -276,10 +276,10 @@
         </div>
       </section>
 
-      <!-- Sensor History Chart -->
+      <!-- Sensor History Charts (one per measurement) -->
       @if (numericSensorCapabilities().length > 0) {
-        <section class="card chart-card">
-          <div class="card-header">
+        <div class="charts-section">
+          <div class="charts-header">
             <h2>📈 Measurement History</h2>
             <div class="time-range-selector">
               <button
@@ -304,28 +304,47 @@
               >7D</button>
             </div>
           </div>
-          <div class="card-body">
-            @if (loadingReadings()) {
-              <div class="loading-state">
-                <div class="spinner-sm"></div>
-                <span>Loading history...</span>
+
+          @if (loadingReadings()) {
+            <section class="card chart-card">
+              <div class="card-body">
+                <div class="loading-state">
+                  <div class="spinner-sm"></div>
+                  <span>Loading history...</span>
+                </div>
               </div>
-            } @else if (chartSeries().length > 0) {
-              <app-sensor-chart
-                [series]="chartSeries()"
-                [height]="250"
-                [showLegend]="true"
-                [showGrid]="true"
-                [timeRange]="selectedTimeRange()"
-              />
-            } @else {
-              <div class="empty-state">
-                <span>📊</span>
-                <p>No historical data available for this time range</p>
-              </div>
+            </section>
+          } @else if (individualCharts().length > 0) {
+            @for (chart of individualCharts(); track chart.metric) {
+              <section class="card chart-card">
+                <div class="card-header">
+                  <h3>{{ chart.series[0].name }}</h3>
+                  @if (chart.series[0].unit) {
+                    <span class="chart-unit">{{ chart.series[0].unit }}</span>
+                  }
+                </div>
+                <div class="card-body">
+                  <app-sensor-chart
+                    [series]="chart.series"
+                    [height]="200"
+                    [showLegend]="false"
+                    [showGrid]="true"
+                    [timeRange]="selectedTimeRange()"
+                  />
+                </div>
+              </section>
             }
-          </div>
-        </section>
+          } @else {
+            <section class="card chart-card">
+              <div class="card-body">
+                <div class="empty-state">
+                  <span>📊</span>
+                  <p>No historical data available for this time range</p>
+                </div>
+              </div>
+            </section>
+          }
+        </div>
       }
 
       <!-- Other Actions Card (Settings/Config) -->

@@ -1,0 +1,157 @@
+<div class="triggers-page">
+  <!-- Page Header -->
+  <header class="page-header">
+    <div class="header-content">
+      <div class="header-title">
+        <h1>🔔 Trigger Events</h1>
+        <p class="subtitle">Motion, contact, and action events from your sensors</p>
+      </div>
+
+      <div class="header-controls">
+        <div class="connection-badge" [ngClass]="isConnected() ? 'connected' : 'disconnected'">
+          <span class="status-dot"></span>
+          <span>{{ isConnected() ? 'Live' : 'Offline' }}</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-content">
+        <span class="stat-value">{{ stats().total }}</span>
+        <span class="stat-label">Total Events</span>
+      </div>
+    </div>
+
+    @for (entry of stats().byType | keyvalue; track entry.key) {
+      <div class="stat-card">
+        <div class="stat-icon">{{ getTypeIcon(entry.key) }}</div>
+        <div class="stat-content">
+          <span class="stat-value">{{ entry.value }}</span>
+          <span class="stat-label">{{ getTypeDisplayName(entry.key) }}</span>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Control Bar -->
+  <div class="control-bar">
+    <div class="filters">
+      <!-- Search -->
+      <div class="search-input">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          placeholder="Search triggers..."
+          [ngModel]="searchFilter()"
+          (ngModelChange)="searchFilter.set($event)"
+        />
+        @if (searchFilter()) {
+          <button class="clear-search" (click)="searchFilter.set('')">✕</button>
+        }
+      </div>
+
+      <!-- Type Filter Dropdown -->
+      <div class="dropdown-wrapper">
+        <button class="dropdown-trigger" (click)="showTypeDropdown = !showTypeDropdown">
+          <span>{{ getSelectedTypeLabel() }}</span>
+          <span class="dropdown-arrow">▼</span>
+        </button>
+        @if (showTypeDropdown) {
+          <div class="dropdown-menu">
+            @for (type of uniqueTypes(); track type.value) {
+              <button
+                class="dropdown-item"
+                [class.active]="typeFilter() === type.value || (!typeFilter() && !type.value)"
+                (click)="selectType(type.value)"
+              >
+                {{ type.label }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" (click)="refresh()" [disabled]="loading()">
+        @if (loading()) {
+          <span class="spinner-sm"></span>
+        } @else {
+          🔄
+        }
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Triggers Table -->
+  <div class="data-card">
+    <div class="table-container">
+      @if (loading()) {
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <span>Loading triggers...</span>
+        </div>
+      } @else if (filteredTriggers().length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">📭</span>
+          <span class="empty-text">No triggers found</span>
+          <span class="empty-hint">Trigger events will appear here when sensors detect motion or contact changes</span>
+        </div>
+      } @else {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="col-time">Time</th>
+              <th class="col-device">Device</th>
+              <th class="col-type">Type</th>
+              <th class="col-capability">Capability</th>
+              <th class="col-value">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (trigger of filteredTriggers(); track trackTrigger($index, trigger)) {
+              <tr class="trigger-row animate-fadeIn">
+                <td class="col-time mono">
+                  {{ formatTimestamp(trigger.timestampUtc) }}
+                </td>
+                <td class="col-device">
+                  <span class="device-name">{{ trigger.deviceId || '-' }}</span>
+                </td>
+                <td class="col-type">
+                  <span class="tag" [ngClass]="'tag-' + getTriggerTypeClass(trigger.triggerType)">
+                    {{ getTypeIcon(trigger.triggerType) }} {{ getTypeDisplayName(trigger.triggerType) }}
+                  </span>
+                </td>
+                <td class="col-capability">
+                  {{ getCapabilityDisplayName(trigger) }}
+                </td>
+                <td class="col-value">
+                  @if (trigger.value !== undefined) {
+                    @let translated = translateValue(trigger);
+                    <span
+                      class="value-badge"
+                      [class.active]="translated.isActive"
+                      [style.--badge-color]="translated.color"
+                    >
+                      @if (translated.icon) {
+                        {{ translated.icon }}
+                      }
+                      {{ translated.friendlyName }}
+                    </span>
+                  } @else {
+                    <span class="text-muted">-</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </div>
+</div>

@@ -854,8 +854,31 @@ select {
   font-family: 'Fira Code', 'Consolas', monospace;
 }
 
+/* Charts Section */
+.charts-section {
+  margin-bottom: var(--spacing-xl);
+
+  .charts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    padding: 0 var(--spacing-md);
+
+    h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: var(--text-primary);
+    }
+  }
+}
+
 /* Chart Card */
 .chart-card {
+  margin-bottom: var(--spacing-lg);
+
   @media (min-width: 768px) {
     grid-column: span 2;
   }
@@ -866,6 +889,22 @@ select {
     justify-content: space-between;
     flex-wrap: wrap;
     gap: var(--spacing-md);
+
+    h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .chart-unit {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      font-weight: 500;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+    }
   }
 }
 

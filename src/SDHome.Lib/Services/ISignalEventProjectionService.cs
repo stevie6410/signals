@@ -4,7 +4,8 @@ namespace SDHome.Lib.Services;
 
 public record ProjectedEventData(
     TriggerEvent? Trigger,
-    IReadOnlyList<SensorReading> Readings
+    IReadOnlyList<SensorReading> Readings,
+    IReadOnlyList<TriggerEvent> CustomTriggers
 );
 
 /// <summary>

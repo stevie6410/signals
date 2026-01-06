@@ -117,11 +117,21 @@ public class SignalsService(
             var projectedData = await projectionService.ProjectAsync(ev, cancellationToken, pipelineContext);
             var projectionTime = Stopwatch.GetElapsedTime(projectionStart);
 
-            // 4. Forward to webhook (n8n) if configured
+            // 4. Forward triggers to webhook (n8n) if configured
             var webhookStart = Stopwatch.GetTimestamp();
             if (!string.IsNullOrWhiteSpace(_n8nWebhookUrl))
             {
-                await SendToWebhookAsync(_n8nWebhookUrl, ev, cancellationToken);
+                // Send primary trigger
+                if (projectedData.Trigger != null)
+                {
+                    await SendTriggerToWebhookAsync(_n8nWebhookUrl, projectedData.Trigger, cancellationToken);
+                }
+                
+                // Send custom triggers
+                foreach (var customTrigger in projectedData.CustomTriggers)
+                {
+                    await SendTriggerToWebhookAsync(_n8nWebhookUrl, customTrigger, cancellationToken);
+                }
             }
             var webhookTime = Stopwatch.GetElapsedTime(webhookStart);
 
@@ -209,26 +219,26 @@ public class SignalsService(
         };
     }
 
-    private async Task SendToWebhookAsync(
+    private async Task SendTriggerToWebhookAsync(
         string webhookUrl,
-        SignalEvent ev,
+        TriggerEvent trigger,
         CancellationToken ct)
     {
         try
         {
-            var response = await httpClient.PostAsJsonAsync(webhookUrl, ev, ct);
+            var response = await httpClient.PostAsJsonAsync(webhookUrl, trigger, ct);
 
             if (!response.IsSuccessStatusCode)
             {
                 Log.Warning(
-                    "n8n webhook returned {StatusCode} for SignalEvent {Id}",
+                    "n8n webhook returned {StatusCode} for TriggerEvent {Id}",
                     response.StatusCode,
-                    ev.Id);
+                    trigger.Id);
             }
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error sending SignalEvent {Id} to n8n webhook", ev.Id);
+            Log.Error(ex, "Error sending TriggerEvent {Id} to n8n webhook", ex, trigger.Id);
         }
     }
 }

@@ -9,7 +9,8 @@ namespace SDHome.Lib.Services;
 public class SignalEventProjectionService(
     SignalsDbContext db,
     IRealtimeEventBroadcaster broadcaster,
-    IAutomationEngine automationEngine) : ISignalEventProjectionService
+    IAutomationEngine automationEngine,
+    ICustomTriggerService customTriggerService) : ISignalEventProjectionService
 {
     /// <summary>
     /// Known sensor metrics and their units. Each metric in a payload becomes a separate SensorReading.
@@ -116,6 +117,22 @@ public class SignalEventProjectionService(
             await db.SaveChangesAsync(cancellationToken);
         }
         
+        // Evaluate custom triggers against sensor readings
+        var customTriggers = await customTriggerService.EvaluateSensorReadingsAsync(allReadings);
+        
+        // Persist and broadcast custom triggers
+        if (customTriggers.Count > 0)
+        {
+            db.TriggerEvents.AddRange(customTriggers.Select(TriggerEventEntity.FromModel));
+            await db.SaveChangesAsync(cancellationToken);
+            
+            foreach (var customTrigger in customTriggers)
+            {
+                await broadcaster.BroadcastTriggerEventAsync(customTrigger);
+                await automationEngine.ProcessTriggerEventAsync(customTrigger, pipelineContext);
+            }
+        }
+        
         // Broadcast trigger event
         if (trigger != null)
         {
@@ -133,7 +150,12 @@ public class SignalEventProjectionService(
             await automationEngine.ProcessSensorReadingAsync(reading, pipelineContext);
         }
         
-        return new ProjectedEventData(trigger, allReadings);
+        // Combine standard trigger with custom triggers
+        var allTriggers = new List<TriggerEvent>();
+        if (trigger != null) allTriggers.Add(trigger);
+        allTriggers.AddRange(customTriggers);
+        
+        return new ProjectedEventData(trigger, allReadings, customTriggers);
     }
 
     /// <summary>

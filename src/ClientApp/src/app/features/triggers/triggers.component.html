@@ -3,155 +3,405 @@
   <header class="page-header">
     <div class="header-content">
       <div class="header-title">
-        <h1>🔔 Trigger Events</h1>
-        <p class="subtitle">Motion, contact, and action events from your sensors</p>
+        <h1>🔔 Triggers</h1>
+        <p class="subtitle">Trigger events and custom trigger rules</p>
       </div>
 
       <div class="header-controls">
-        <div class="connection-badge" [ngClass]="isConnected() ? 'connected' : 'disconnected'">
-          <span class="status-dot"></span>
-          <span>{{ isConnected() ? 'Live' : 'Offline' }}</span>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <!-- Stats Cards -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-icon">📊</div>
-      <div class="stat-content">
-        <span class="stat-value">{{ stats().total }}</span>
-        <span class="stat-label">Total Events</span>
-      </div>
-    </div>
-
-    @for (entry of stats().byType | keyvalue; track entry.key) {
-      <div class="stat-card">
-        <div class="stat-icon">{{ getTypeIcon(entry.key) }}</div>
-        <div class="stat-content">
-          <span class="stat-value">{{ entry.value }}</span>
-          <span class="stat-label">{{ getTypeDisplayName(entry.key) }}</span>
-        </div>
-      </div>
-    }
-  </div>
-
-  <!-- Control Bar -->
-  <div class="control-bar">
-    <div class="filters">
-      <!-- Search -->
-      <div class="search-input">
-        <span class="search-icon">🔍</span>
-        <input
-          type="text"
-          placeholder="Search triggers..."
-          [ngModel]="searchFilter()"
-          (ngModelChange)="searchFilter.set($event)"
-        />
-        @if (searchFilter()) {
-          <button class="clear-search" (click)="searchFilter.set('')">✕</button>
-        }
-      </div>
-
-      <!-- Type Filter Dropdown -->
-      <div class="dropdown-wrapper">
-        <button class="dropdown-trigger" (click)="showTypeDropdown = !showTypeDropdown">
-          <span>{{ getSelectedTypeLabel() }}</span>
-          <span class="dropdown-arrow">▼</span>
-        </button>
-        @if (showTypeDropdown) {
-          <div class="dropdown-menu">
-            @for (type of uniqueTypes(); track type.value) {
-              <button
-                class="dropdown-item"
-                [class.active]="typeFilter() === type.value || (!typeFilter() && !type.value)"
-                (click)="selectType(type.value)"
-              >
-                {{ type.label }}
-              </button>
-            }
+        @if (activeTab() === 'events') {
+          <div class="connection-badge" [ngClass]="isConnected() ? 'connected' : 'disconnected'">
+            <span class="status-dot"></span>
+            <span>{{ isConnected() ? 'Live' : 'Offline' }}</span>
           </div>
         }
       </div>
     </div>
+  </header>
 
-    <div class="actions">
-      <button class="btn btn-primary" (click)="refresh()" [disabled]="loading()">
-        @if (loading()) {
-          <span class="spinner-sm"></span>
-        } @else {
-          🔄
-        }
-        Refresh
-      </button>
-    </div>
+  <!-- Tabs -->
+  <div class="tabs">
+    <button
+      class="tab"
+      [class.active]="activeTab() === 'events'"
+      (click)="switchTab('events')"
+    >
+      <span class="tab-icon">📋</span>
+      <span class="tab-label">Trigger Events</span>
+    </button>
+    <button
+      class="tab"
+      [class.active]="activeTab() === 'custom'"
+      (click)="switchTab('custom')"
+    >
+      <span class="tab-icon">⚙️</span>
+      <span class="tab-label">Custom Triggers</span>
+    </button>
   </div>
 
-  <!-- Triggers Table -->
-  <div class="data-card">
-    <div class="table-container">
-      @if (loading()) {
-        <div class="loading-state">
-          <div class="spinner"></div>
-          <span>Loading triggers...</span>
+  <!-- Trigger Events Tab -->
+  @if (activeTab() === 'events') {
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-content">
+          <span class="stat-value">{{ stats().total }}</span>
+          <span class="stat-label">Total Events</span>
         </div>
-      } @else if (filteredTriggers().length === 0) {
-        <div class="empty-state">
-          <span class="empty-icon">📭</span>
-          <span class="empty-text">No triggers found</span>
-          <span class="empty-hint">Trigger events will appear here when sensors detect motion or contact changes</span>
+      </div>
+
+      @for (entry of stats().byType | keyvalue; track entry.key) {
+        <div class="stat-card">
+          <div class="stat-icon">{{ getTypeIcon(entry.key) }}</div>
+          <div class="stat-content">
+            <span class="stat-value">{{ entry.value }}</span>
+            <span class="stat-label">{{ getTypeDisplayName(entry.key) }}</span>
+          </div>
         </div>
-      } @else {
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th class="col-time">Time</th>
-              <th class="col-device">Device</th>
-              <th class="col-type">Type</th>
-              <th class="col-capability">Capability</th>
-              <th class="col-value">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (trigger of filteredTriggers(); track trackTrigger($index, trigger)) {
-              <tr class="trigger-row animate-fadeIn">
-                <td class="col-time mono">
-                  {{ formatTimestamp(trigger.timestampUtc) }}
-                </td>
-                <td class="col-device">
-                  <span class="device-name">{{ trigger.deviceId || '-' }}</span>
-                </td>
-                <td class="col-type">
-                  <span class="tag" [ngClass]="'tag-' + getTriggerTypeClass(trigger.triggerType)">
-                    {{ getTypeIcon(trigger.triggerType) }} {{ getTypeDisplayName(trigger.triggerType) }}
-                  </span>
-                </td>
-                <td class="col-capability">
-                  {{ getCapabilityDisplayName(trigger) }}
-                </td>
-                <td class="col-value">
-                  @if (trigger.value !== undefined) {
-                    @let translated = translateValue(trigger);
-                    <span
-                      class="value-badge"
-                      [class.active]="translated.isActive"
-                      [style.--badge-color]="translated.color"
-                    >
-                      @if (translated.icon) {
-                        {{ translated.icon }}
-                      }
-                      {{ translated.friendlyName }}
-                    </span>
-                  } @else {
-                    <span class="text-muted">-</span>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
       }
     </div>
-  </div>
+
+    <!-- Control Bar -->
+    <div class="control-bar">
+      <div class="filters">
+        <!-- Search -->
+        <div class="search-input">
+          <span class="search-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="Search triggers..."
+            [ngModel]="searchFilter()"
+            (ngModelChange)="searchFilter.set($event)"
+          />
+          @if (searchFilter()) {
+            <button class="clear-search" (click)="searchFilter.set('')">✕</button>
+          }
+        </div>
+
+        <!-- Type Filter Dropdown -->
+        <div class="dropdown-wrapper">
+          <button class="dropdown-trigger" (click)="showTypeDropdown = !showTypeDropdown">
+            <span>{{ getSelectedTypeLabel() }}</span>
+            <span class="dropdown-arrow">▼</span>
+          </button>
+          @if (showTypeDropdown) {
+            <div class="dropdown-menu">
+              @for (type of uniqueTypes(); track type.value) {
+                <button
+                  class="dropdown-item"
+                  [class.active]="typeFilter() === type.value || (!typeFilter() && !type.value)"
+                  (click)="selectType(type.value)"
+                >
+                  {{ type.label }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" (click)="refresh()" [disabled]="loading()">
+          @if (loading()) {
+            <span class="spinner-sm"></span>
+          } @else {
+            🔄
+          }
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Triggers Table -->
+    <div class="data-card">
+      <div class="table-container">
+        @if (loading()) {
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <span>Loading triggers...</span>
+          </div>
+        } @else if (filteredTriggers().length === 0) {
+          <div class="empty-state">
+            <span class="empty-icon">📭</span>
+            <span class="empty-text">No triggers found</span>
+            <span class="empty-hint">Trigger events will appear here when sensors detect motion or contact changes</span>
+          </div>
+        } @else {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-time">Time</th>
+                <th class="col-device">Device</th>
+                <th class="col-type">Type</th>
+                <th class="col-capability">Capability</th>
+                <th class="col-value">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (trigger of filteredTriggers(); track trackTrigger($index, trigger)) {
+                <tr class="trigger-row animate-fadeIn">
+                  <td class="col-time mono">
+                    {{ formatTimestamp(trigger.timestampUtc) }}
+                  </td>
+                  <td class="col-device">
+                    <span class="device-name">{{ trigger.deviceId || '-' }}</span>
+                  </td>
+                  <td class="col-type">
+                    <span class="tag" [ngClass]="'tag-' + getTriggerTypeClass(trigger.triggerType)">
+                      {{ getTypeIcon(trigger.triggerType) }} {{ getTypeDisplayName(trigger.triggerType) }}
+                    </span>
+                  </td>
+                  <td class="col-capability">
+                    {{ getCapabilityDisplayName(trigger) }}
+                  </td>
+                  <td class="col-value">
+                    @if (trigger.value !== undefined) {
+                      @let translated = translateValue(trigger);
+                      <span
+                        class="value-badge"
+                        [class.active]="translated.isActive"
+                        [style.--badge-color]="translated.color"
+                      >
+                        @if (translated.icon) {
+                          {{ translated.icon }}
+                        }
+                        {{ translated.friendlyName }}
+                      </span>
+                    } @else {
+                      <span class="text-muted">-</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Custom Triggers Tab -->
+  @if (activeTab() === 'custom') {
+    <div class="control-bar">
+      <div class="filters">
+        <p class="hint-text">
+          Create custom triggers that fire when sensor values meet specific conditions
+        </p>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" (click)="openCreateModal()">
+          ➕ Create Custom Trigger
+        </button>
+      </div>
+    </div>
+
+    <div class="data-card">
+      @if (customTriggersLoading()) {
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <span>Loading custom triggers...</span>
+        </div>
+      } @else if (customTriggers().length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">⚙️</span>
+          <span class="empty-text">No custom triggers</span>
+          <span class="empty-hint">Create your first custom trigger to monitor sensor thresholds</span>
+          <button class="btn btn-primary" (click)="openCreateModal()" style="margin-top: 1rem;">
+            ➕ Create Custom Trigger
+          </button>
+        </div>
+      } @else {
+        <div class="custom-triggers-grid">
+          @for (trigger of customTriggers(); track trigger.id) {
+            <div class="custom-trigger-card" [class.disabled]="!trigger.enabled">
+              <div class="trigger-card-header">
+                <div class="trigger-card-title">
+                  <h3>{{ trigger.name }}</h3>
+                  @if (!trigger.enabled) {
+                    <span class="tag tag-secondary">Disabled</span>
+                  }
+                </div>
+                <div class="trigger-card-actions">
+                  <button
+                    class="btn-icon"
+                    [class.btn-success]="!trigger.enabled"
+                    [class.btn-secondary]="trigger.enabled"
+                    (click)="toggleCustomTrigger(trigger)"
+                    [title]="trigger.enabled ? 'Disable' : 'Enable'"
+                  >
+                    {{ trigger.enabled ? '⏸' : '▶' }}
+                  </button>
+                  <button class="btn-icon" (click)="openEditModal(trigger)" title="Edit">
+                    ✏️
+                  </button>
+                  <button class="btn-icon btn-danger" (click)="deleteCustomTrigger(trigger)" title="Delete">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+
+              <div class="trigger-card-body">
+                <div class="trigger-condition">
+                  <span class="device-badge">{{ trigger.deviceId }}</span>
+                  <span class="condition-text">{{ trigger.condition }}</span>
+                </div>
+
+                <div class="trigger-card-footer">
+                  <div class="trigger-stat">
+                    <span class="stat-label">Executions</span>
+                    <span class="stat-value">{{ trigger.executionCount || 0 }}</span>
+                  </div>
+                  @if (trigger.lastFiredUtc) {
+                    <div class="trigger-stat">
+                      <span class="stat-label">Last Fired</span>
+                      <span class="stat-value">{{ formatTimestamp(trigger.lastFiredUtc) }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Create/Edit Modal -->
+  @if (showCreateModal()) {
+    <div class="modal-overlay" (click)="closeModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>{{ editingTrigger() ? 'Edit' : 'Create' }} Custom Trigger</h2>
+          <button class="btn-close" (click)="closeModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Name *</label>
+            <input
+              type="text"
+              class="form-input"
+              placeholder="e.g. Front Room Too Cold"
+              [ngModel]="form().name"
+              (ngModelChange)="updateFormName($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Description</label>
+            <textarea
+              class="form-input"
+              placeholder="Optional description"
+              rows="2"
+              [ngModel]="form().description"
+              (ngModelChange)="updateFormDescription($event)"
+            ></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Device *</label>
+              <select
+                class="form-select"
+                [ngModel]="form().deviceId"
+                (ngModelChange)="updateFormDeviceId($event)"
+              >
+                <option value="">Select device...</option>
+                @for (device of devices(); track device.deviceId) {
+                  <option [value]="device.deviceId">{{ device.friendlyName || device.deviceId }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group flex-1">
+              <label>Metric *</label>
+              <select
+                class="form-select"
+                [ngModel]="form().metric"
+                (ngModelChange)="updateFormMetric($event)"
+              >
+                <option value="">Select metric...</option>
+                @for (metric of getMetricOptions(); track metric) {
+                  <option [value]="metric">{{ metric }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Operator *</label>
+              <select
+                class="form-select"
+                [ngModel]="form().operator"
+                (ngModelChange)="updateFormOperator($event)"
+              >
+                @for (op of getOperatorOptions(); track op.value) {
+                  <option [value]="op.value">{{ op.label }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group flex-1">
+              <label>Threshold *</label>
+              <input
+                type="number"
+                class="form-input"
+                step="0.1"
+                [ngModel]="form().threshold"
+                (ngModelChange)="updateFormThreshold($event)"
+              />
+            </div>
+
+            @if (form().operator === ThresholdOperator.Between) {
+              <div class="form-group flex-1">
+                <label>Threshold 2 *</label>
+                <input
+                  type="number"
+                  class="form-input"
+                  step="0.1"
+                  [ngModel]="form().threshold2"
+                  (ngModelChange)="updateFormThreshold2($event)"
+                />
+              </div>
+            }
+          </div>
+
+          <div class="form-group">
+            <label>Cooldown (seconds)</label>
+            <input
+              type="number"
+              class="form-input"
+              placeholder="300"
+              [ngModel]="form().cooldownSeconds"
+              (ngModelChange)="updateFormCooldownSeconds($event)"
+            />
+            <span class="help-text">Minimum time between trigger fires (prevents spam)</span>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [ngModel]="form().enabled"
+                (ngModelChange)="updateFormEnabled($event)"
+              />
+              <span>Enabled</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+          <button
+            class="btn btn-primary"
+            (click)="saveTrigger()"
+            [disabled]="!form().name || !form().deviceId || !form().metric"
+          >
+            {{ editingTrigger() ? 'Update' : 'Create' }} Trigger
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

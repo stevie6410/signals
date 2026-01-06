@@ -179,8 +179,8 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
     return this.numericSensorCapabilities().length > 0 && this.sensorReadings().length > 0;
   });
 
-  // Convert sensor readings to chart series
-  chartSeries = computed<ChartSeries[]>(() => {
+  // Convert sensor readings to individual charts (one chart per measurement)
+  individualCharts = computed<Array<{ metric: string; series: ChartSeries[] }>>(() => {
     const readings = this.sensorReadings();
     const caps = this.numericSensorCapabilities();
 
@@ -196,8 +196,8 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
       byMetric.get(r.metric)!.push(r);
     }
 
-    // Create series for each metric
-    const series: ChartSeries[] = [];
+    // Create a separate chart for each metric
+    const charts: Array<{ metric: string; series: ChartSeries[] }> = [];
     const colors = ['#00f5ff', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444'];
     let colorIndex = 0;
 
@@ -205,7 +205,7 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
       // Find matching capability for unit info
       const cap = caps.find(c => c.property?.toLowerCase() === metric.toLowerCase());
 
-      series.push({
+      const series: ChartSeries = {
         name: this.formatMetricName(metric),
         unit: cap?.unit || metricReadings[0]?.unit || '',
         color: colors[colorIndex % colors.length],
@@ -215,11 +215,16 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
             timestamp: r.timestampUtc!,
             value: r.value!,
           })),
+      };
+
+      charts.push({
+        metric,
+        series: [series], // Each chart has only one series
       });
       colorIndex++;
     }
 
-    return series;
+    return charts;
   });
 
   // Quick actions (primary controls like on/off, brightness)

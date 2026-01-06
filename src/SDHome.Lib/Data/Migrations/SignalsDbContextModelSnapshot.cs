@@ -437,6 +437,145 @@ namespace SDHome.Lib.Data.Migrations
                     b.ToTable("capability_mappings", (string)null);
                 });
 
+            modelBuilder.Entity("SDHome.Lib.Data.Entities.CustomTriggerLogEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Condition")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("condition");
+
+                    b.Property<Guid>("CustomTriggerRuleId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("custom_trigger_rule_id");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("device_id");
+
+                    b.Property<DateTime>("FiredUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("fired_utc");
+
+                    b.Property<Guid?>("GeneratedTriggerEventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("generated_trigger_event_id");
+
+                    b.Property<string>("Metric")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("metric");
+
+                    b.Property<double>("Value")
+                        .HasColumnType("float")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomTriggerRuleId")
+                        .HasDatabaseName("idx_custom_trigger_logs_rule_id");
+
+                    b.HasIndex("FiredUtc")
+                        .HasDatabaseName("idx_custom_trigger_logs_fired_utc");
+
+                    b.ToTable("custom_trigger_logs", (string)null);
+                });
+
+            modelBuilder.Entity("SDHome.Lib.Data.Entities.CustomTriggerRuleEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("CooldownSeconds")
+                        .HasColumnType("int")
+                        .HasColumnName("cooldown_seconds");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_utc");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("device_id");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("bit")
+                        .HasColumnName("enabled");
+
+                    b.Property<DateTime?>("LastFiredUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("last_fired_utc");
+
+                    b.Property<string>("Metric")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("metric");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Operator")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("operator");
+
+                    b.Property<double>("Threshold")
+                        .HasColumnType("float")
+                        .HasColumnName("threshold");
+
+                    b.Property<double?>("Threshold2")
+                        .HasColumnType("float")
+                        .HasColumnName("threshold2");
+
+                    b.Property<string>("TriggerType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("trigger_type");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_utc");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId")
+                        .HasDatabaseName("idx_custom_triggers_device_id");
+
+                    b.HasIndex("Enabled")
+                        .HasDatabaseName("idx_custom_triggers_enabled");
+
+                    b.HasIndex("Metric")
+                        .HasDatabaseName("idx_custom_triggers_metric");
+
+                    b.HasIndex("DeviceId", "Metric")
+                        .HasDatabaseName("idx_custom_triggers_device_metric");
+
+                    b.ToTable("custom_trigger_rules", (string)null);
+                });
+
             modelBuilder.Entity("SDHome.Lib.Data.Entities.DeviceEntity", b =>
                 {
                     b.Property<string>("DeviceId")
@@ -943,6 +1082,17 @@ namespace SDHome.Lib.Data.Migrations
                     b.Navigation("AutomationRule");
                 });
 
+            modelBuilder.Entity("SDHome.Lib.Data.Entities.CustomTriggerLogEntity", b =>
+                {
+                    b.HasOne("SDHome.Lib.Data.Entities.CustomTriggerRuleEntity", "CustomTriggerRule")
+                        .WithMany("Logs")
+                        .HasForeignKey("CustomTriggerRuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CustomTriggerRule");
+                });
+
             modelBuilder.Entity("SDHome.Lib.Data.Entities.DeviceEntity", b =>
                 {
                     b.HasOne("SDHome.Lib.Data.Entities.ZoneEntity", "Zone")
@@ -991,6 +1141,11 @@ namespace SDHome.Lib.Data.Migrations
                     b.Navigation("ExecutionLogs");
 
                     b.Navigation("Triggers");
+                });
+
+            modelBuilder.Entity("SDHome.Lib.Data.Entities.CustomTriggerRuleEntity", b =>
+                {
+                    b.Navigation("Logs");
                 });
 
             modelBuilder.Entity("SDHome.Lib.Data.Entities.ZoneEntity", b =>

@@ -58,6 +58,7 @@ builder.Services.AddScoped<IDeviceService, DeviceService>();
 builder.Services.AddScoped<ISignalEventProjectionService, SignalEventProjectionService>();
 builder.Services.AddScoped<ISignalsService, SignalsService>();
 builder.Services.AddScoped<IAutomationService, AutomationService>();
+builder.Services.AddScoped<ICustomTriggerService, CustomTriggerService>();
 builder.Services.AddScoped<DatabaseSeeder>();
 
 // SignalR real-time event broadcaster

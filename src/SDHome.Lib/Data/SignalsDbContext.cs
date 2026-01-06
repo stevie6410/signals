@@ -20,6 +20,10 @@ public class SignalsDbContext(DbContextOptions<SignalsDbContext> options) : DbCo
     public DbSet<AutomationExecutionLogEntity> AutomationExecutionLogs => Set<AutomationExecutionLogEntity>();
     public DbSet<SceneEntity> Scenes => Set<SceneEntity>();
 
+    // Custom trigger entities
+    public DbSet<CustomTriggerRuleEntity> CustomTriggerRules => Set<CustomTriggerRuleEntity>();
+    public DbSet<CustomTriggerLogEntity> CustomTriggerLogs => Set<CustomTriggerLogEntity>();
+
     // Settings entities
     public DbSet<CapabilityMappingEntity> CapabilityMappings => Set<CapabilityMappingEntity>();
 
@@ -379,6 +383,57 @@ public class SignalsDbContext(DbContextOptions<SignalsDbContext> options) : DbCo
 
             entity.HasIndex(e => e.Capability).HasDatabaseName("idx_capability_mappings_capability");
             entity.HasIndex(e => new { e.Capability, e.DeviceType }).HasDatabaseName("idx_capability_mappings_cap_device");
+        });
+
+        // CustomTriggerRule configuration
+        modelBuilder.Entity<CustomTriggerRuleEntity>(entity =>
+        {
+            entity.ToTable("custom_trigger_rules");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(e => e.Enabled).HasColumnName("enabled");
+            entity.Property(e => e.TriggerType).HasColumnName("trigger_type").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.DeviceId).HasColumnName("device_id").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Metric).HasColumnName("metric").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Operator).HasColumnName("operator").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Threshold).HasColumnName("threshold");
+            entity.Property(e => e.Threshold2).HasColumnName("threshold2");
+            entity.Property(e => e.CooldownSeconds).HasColumnName("cooldown_seconds");
+            entity.Property(e => e.LastFiredUtc).HasColumnName("last_fired_utc").HasColumnType("datetime2");
+            entity.Property(e => e.CreatedUtc).HasColumnName("created_utc").HasColumnType("datetime2");
+            entity.Property(e => e.UpdatedUtc).HasColumnName("updated_utc").HasColumnType("datetime2");
+
+            entity.HasIndex(e => e.DeviceId).HasDatabaseName("idx_custom_triggers_device_id");
+            entity.HasIndex(e => e.Metric).HasDatabaseName("idx_custom_triggers_metric");
+            entity.HasIndex(e => new { e.DeviceId, e.Metric }).HasDatabaseName("idx_custom_triggers_device_metric");
+            entity.HasIndex(e => e.Enabled).HasDatabaseName("idx_custom_triggers_enabled");
+        });
+
+        // CustomTriggerLog configuration
+        modelBuilder.Entity<CustomTriggerLogEntity>(entity =>
+        {
+            entity.ToTable("custom_trigger_logs");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CustomTriggerRuleId).HasColumnName("custom_trigger_rule_id");
+            entity.Property(e => e.FiredUtc).HasColumnName("fired_utc").HasColumnType("datetime2");
+            entity.Property(e => e.DeviceId).HasColumnName("device_id").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Metric).HasColumnName("metric").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Value).HasColumnName("value");
+            entity.Property(e => e.Condition).HasColumnName("condition").HasMaxLength(500).IsRequired();
+            entity.Property(e => e.GeneratedTriggerEventId).HasColumnName("generated_trigger_event_id");
+
+            entity.HasOne(e => e.CustomTriggerRule)
+                .WithMany(r => r.Logs)
+                .HasForeignKey(e => e.CustomTriggerRuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.CustomTriggerRuleId).HasDatabaseName("idx_custom_trigger_logs_rule_id");
+            entity.HasIndex(e => e.FiredUtc).HasDatabaseName("idx_custom_trigger_logs_fired_utc");
         });
     }
 }

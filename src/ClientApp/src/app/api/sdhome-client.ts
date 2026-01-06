@@ -1031,6 +1031,404 @@ export class ScenesApiService {
 @Injectable({
     providedIn: 'root'
 })
+export class CustomTriggersApiService {
+    private http: HttpClient;
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
+        this.http = http;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getCustomTriggers(): Observable<CustomTriggerSummary[]> {
+        let url_ = this.baseUrl + "/api/custom-triggers";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetCustomTriggers(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetCustomTriggers(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CustomTriggerSummary[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CustomTriggerSummary[]>;
+        }));
+    }
+
+    protected processGetCustomTriggers(response: HttpResponseBase): Observable<CustomTriggerSummary[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(CustomTriggerSummary.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    createCustomTrigger(request: CreateCustomTriggerRequest): Observable<CustomTriggerRule> {
+        let url_ = this.baseUrl + "/api/custom-triggers";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processCreateCustomTrigger(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processCreateCustomTrigger(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CustomTriggerRule>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CustomTriggerRule>;
+        }));
+    }
+
+    protected processCreateCustomTrigger(response: HttpResponseBase): Observable<CustomTriggerRule> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CustomTriggerRule.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getCustomTrigger(id: string): Observable<CustomTriggerRule> {
+        let url_ = this.baseUrl + "/api/custom-triggers/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetCustomTrigger(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetCustomTrigger(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CustomTriggerRule>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CustomTriggerRule>;
+        }));
+    }
+
+    protected processGetCustomTrigger(response: HttpResponseBase): Observable<CustomTriggerRule> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CustomTriggerRule.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    updateCustomTrigger(id: string, request: UpdateCustomTriggerRequest): Observable<CustomTriggerRule> {
+        let url_ = this.baseUrl + "/api/custom-triggers/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("put", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processUpdateCustomTrigger(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processUpdateCustomTrigger(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CustomTriggerRule>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CustomTriggerRule>;
+        }));
+    }
+
+    protected processUpdateCustomTrigger(response: HttpResponseBase): Observable<CustomTriggerRule> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CustomTriggerRule.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    deleteCustomTrigger(id: string): Observable<FileResponse> {
+        let url_ = this.baseUrl + "/api/custom-triggers/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/octet-stream"
+            })
+        };
+
+        return this.http.request("delete", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processDeleteCustomTrigger(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processDeleteCustomTrigger(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<FileResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<FileResponse>;
+        }));
+    }
+
+    protected processDeleteCustomTrigger(response: HttpResponseBase): Observable<FileResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    toggleCustomTrigger(id: string, enabled: boolean | undefined): Observable<CustomTriggerRule> {
+        let url_ = this.baseUrl + "/api/custom-triggers/{id}/toggle?";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        if (enabled === null)
+            throw new globalThis.Error("The parameter 'enabled' cannot be null.");
+        else if (enabled !== undefined)
+            url_ += "enabled=" + encodeURIComponent("" + enabled) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("patch", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processToggleCustomTrigger(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processToggleCustomTrigger(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CustomTriggerRule>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CustomTriggerRule>;
+        }));
+    }
+
+    protected processToggleCustomTrigger(response: HttpResponseBase): Observable<CustomTriggerRule> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CustomTriggerRule.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getExecutionLogs(customTriggerRuleId: string | null | undefined, take: number | undefined): Observable<CustomTriggerLog[]> {
+        let url_ = this.baseUrl + "/api/custom-triggers/logs?";
+        if (customTriggerRuleId !== undefined && customTriggerRuleId !== null)
+            url_ += "customTriggerRuleId=" + encodeURIComponent("" + customTriggerRuleId) + "&";
+        if (take === null)
+            throw new globalThis.Error("The parameter 'take' cannot be null.");
+        else if (take !== undefined)
+            url_ += "take=" + encodeURIComponent("" + take) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetExecutionLogs(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetExecutionLogs(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CustomTriggerLog[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CustomTriggerLog[]>;
+        }));
+    }
+
+    protected processGetExecutionLogs(response: HttpResponseBase): Observable<CustomTriggerLog[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(CustomTriggerLog.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+}
+
+@Injectable({
+    providedIn: 'root'
+})
 export class DevicesApiService {
     private http: HttpClient;
     private baseUrl: string;
@@ -5370,6 +5768,383 @@ export interface IUpdateSceneRequest {
     icon?: string | undefined;
     color?: string | undefined;
     deviceStates?: { [key: string]: { [key: string]: any; }; };
+}
+
+export class CustomTriggerSummary implements ICustomTriggerSummary {
+    id?: string;
+    name?: string;
+    enabled?: boolean;
+    deviceId?: string;
+    metric?: string;
+    condition?: string;
+    lastFiredUtc?: Date | undefined;
+    executionCount?: number;
+
+    constructor(data?: ICustomTriggerSummary) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.name = _data["name"];
+            this.enabled = _data["enabled"];
+            this.deviceId = _data["deviceId"];
+            this.metric = _data["metric"];
+            this.condition = _data["condition"];
+            this.lastFiredUtc = _data["lastFiredUtc"] ? new Date(_data["lastFiredUtc"].toString()) : undefined as any;
+            this.executionCount = _data["executionCount"];
+        }
+    }
+
+    static fromJS(data: any): CustomTriggerSummary {
+        data = typeof data === 'object' ? data : {};
+        let result = new CustomTriggerSummary();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["name"] = this.name;
+        data["enabled"] = this.enabled;
+        data["deviceId"] = this.deviceId;
+        data["metric"] = this.metric;
+        data["condition"] = this.condition;
+        data["lastFiredUtc"] = this.lastFiredUtc ? this.lastFiredUtc.toISOString() : undefined as any;
+        data["executionCount"] = this.executionCount;
+        return data;
+    }
+}
+
+export interface ICustomTriggerSummary {
+    id?: string;
+    name?: string;
+    enabled?: boolean;
+    deviceId?: string;
+    metric?: string;
+    condition?: string;
+    lastFiredUtc?: Date | undefined;
+    executionCount?: number;
+}
+
+export class CustomTriggerRule implements ICustomTriggerRule {
+    id?: string;
+    name?: string;
+    description?: string | undefined;
+    enabled?: boolean;
+    triggerType?: CustomTriggerType;
+    deviceId?: string;
+    metric?: string;
+    operator?: ThresholdOperator;
+    threshold?: number;
+    threshold2?: number | undefined;
+    cooldownSeconds?: number | undefined;
+    lastFiredUtc?: Date | undefined;
+    createdUtc?: Date;
+    updatedUtc?: Date;
+
+    constructor(data?: ICustomTriggerRule) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.name = _data["name"];
+            this.description = _data["description"];
+            this.enabled = _data["enabled"];
+            this.triggerType = _data["triggerType"];
+            this.deviceId = _data["deviceId"];
+            this.metric = _data["metric"];
+            this.operator = _data["operator"];
+            this.threshold = _data["threshold"];
+            this.threshold2 = _data["threshold2"];
+            this.cooldownSeconds = _data["cooldownSeconds"];
+            this.lastFiredUtc = _data["lastFiredUtc"] ? new Date(_data["lastFiredUtc"].toString()) : undefined as any;
+            this.createdUtc = _data["createdUtc"] ? new Date(_data["createdUtc"].toString()) : undefined as any;
+            this.updatedUtc = _data["updatedUtc"] ? new Date(_data["updatedUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): CustomTriggerRule {
+        data = typeof data === 'object' ? data : {};
+        let result = new CustomTriggerRule();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["name"] = this.name;
+        data["description"] = this.description;
+        data["enabled"] = this.enabled;
+        data["triggerType"] = this.triggerType;
+        data["deviceId"] = this.deviceId;
+        data["metric"] = this.metric;
+        data["operator"] = this.operator;
+        data["threshold"] = this.threshold;
+        data["threshold2"] = this.threshold2;
+        data["cooldownSeconds"] = this.cooldownSeconds;
+        data["lastFiredUtc"] = this.lastFiredUtc ? this.lastFiredUtc.toISOString() : undefined as any;
+        data["createdUtc"] = this.createdUtc ? this.createdUtc.toISOString() : undefined as any;
+        data["updatedUtc"] = this.updatedUtc ? this.updatedUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface ICustomTriggerRule {
+    id?: string;
+    name?: string;
+    description?: string | undefined;
+    enabled?: boolean;
+    triggerType?: CustomTriggerType;
+    deviceId?: string;
+    metric?: string;
+    operator?: ThresholdOperator;
+    threshold?: number;
+    threshold2?: number | undefined;
+    cooldownSeconds?: number | undefined;
+    lastFiredUtc?: Date | undefined;
+    createdUtc?: Date;
+    updatedUtc?: Date;
+}
+
+export enum CustomTriggerType {
+    SensorThreshold = 0,
+    SensorChange = 1,
+    MetricUnavailable = 2,
+    SignalQuality = 3,
+}
+
+export enum ThresholdOperator {
+    GreaterThan = 0,
+    GreaterThanOrEqual = 1,
+    LessThan = 2,
+    LessThanOrEqual = 3,
+    Equals = 4,
+    NotEquals = 5,
+    Between = 6,
+}
+
+export class CreateCustomTriggerRequest implements ICreateCustomTriggerRequest {
+    name!: string;
+    description?: string | undefined;
+    enabled?: boolean;
+    triggerType!: CustomTriggerType;
+    deviceId!: string;
+    metric!: string;
+    operator!: ThresholdOperator;
+    threshold!: number;
+    threshold2?: number | undefined;
+    cooldownSeconds?: number | undefined;
+
+    constructor(data?: ICreateCustomTriggerRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.name = _data["name"];
+            this.description = _data["description"];
+            this.enabled = _data["enabled"];
+            this.triggerType = _data["triggerType"];
+            this.deviceId = _data["deviceId"];
+            this.metric = _data["metric"];
+            this.operator = _data["operator"];
+            this.threshold = _data["threshold"];
+            this.threshold2 = _data["threshold2"];
+            this.cooldownSeconds = _data["cooldownSeconds"];
+        }
+    }
+
+    static fromJS(data: any): CreateCustomTriggerRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateCustomTriggerRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["name"] = this.name;
+        data["description"] = this.description;
+        data["enabled"] = this.enabled;
+        data["triggerType"] = this.triggerType;
+        data["deviceId"] = this.deviceId;
+        data["metric"] = this.metric;
+        data["operator"] = this.operator;
+        data["threshold"] = this.threshold;
+        data["threshold2"] = this.threshold2;
+        data["cooldownSeconds"] = this.cooldownSeconds;
+        return data;
+    }
+}
+
+export interface ICreateCustomTriggerRequest {
+    name: string;
+    description?: string | undefined;
+    enabled?: boolean;
+    triggerType: CustomTriggerType;
+    deviceId: string;
+    metric: string;
+    operator: ThresholdOperator;
+    threshold: number;
+    threshold2?: number | undefined;
+    cooldownSeconds?: number | undefined;
+}
+
+export class UpdateCustomTriggerRequest implements IUpdateCustomTriggerRequest {
+    name!: string;
+    description?: string | undefined;
+    enabled?: boolean;
+    triggerType!: CustomTriggerType;
+    deviceId!: string;
+    metric!: string;
+    operator!: ThresholdOperator;
+    threshold!: number;
+    threshold2?: number | undefined;
+    cooldownSeconds?: number | undefined;
+
+    constructor(data?: IUpdateCustomTriggerRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.name = _data["name"];
+            this.description = _data["description"];
+            this.enabled = _data["enabled"];
+            this.triggerType = _data["triggerType"];
+            this.deviceId = _data["deviceId"];
+            this.metric = _data["metric"];
+            this.operator = _data["operator"];
+            this.threshold = _data["threshold"];
+            this.threshold2 = _data["threshold2"];
+            this.cooldownSeconds = _data["cooldownSeconds"];
+        }
+    }
+
+    static fromJS(data: any): UpdateCustomTriggerRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateCustomTriggerRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["name"] = this.name;
+        data["description"] = this.description;
+        data["enabled"] = this.enabled;
+        data["triggerType"] = this.triggerType;
+        data["deviceId"] = this.deviceId;
+        data["metric"] = this.metric;
+        data["operator"] = this.operator;
+        data["threshold"] = this.threshold;
+        data["threshold2"] = this.threshold2;
+        data["cooldownSeconds"] = this.cooldownSeconds;
+        return data;
+    }
+}
+
+export interface IUpdateCustomTriggerRequest {
+    name: string;
+    description?: string | undefined;
+    enabled?: boolean;
+    triggerType: CustomTriggerType;
+    deviceId: string;
+    metric: string;
+    operator: ThresholdOperator;
+    threshold: number;
+    threshold2?: number | undefined;
+    cooldownSeconds?: number | undefined;
+}
+
+export class CustomTriggerLog implements ICustomTriggerLog {
+    id?: string;
+    customTriggerRuleId?: string;
+    firedUtc?: Date;
+    deviceId?: string;
+    metric?: string;
+    value?: number;
+    condition?: string;
+    generatedTriggerEventId?: string | undefined;
+
+    constructor(data?: ICustomTriggerLog) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.customTriggerRuleId = _data["customTriggerRuleId"];
+            this.firedUtc = _data["firedUtc"] ? new Date(_data["firedUtc"].toString()) : undefined as any;
+            this.deviceId = _data["deviceId"];
+            this.metric = _data["metric"];
+            this.value = _data["value"];
+            this.condition = _data["condition"];
+            this.generatedTriggerEventId = _data["generatedTriggerEventId"];
+        }
+    }
+
+    static fromJS(data: any): CustomTriggerLog {
+        data = typeof data === 'object' ? data : {};
+        let result = new CustomTriggerLog();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["customTriggerRuleId"] = this.customTriggerRuleId;
+        data["firedUtc"] = this.firedUtc ? this.firedUtc.toISOString() : undefined as any;
+        data["deviceId"] = this.deviceId;
+        data["metric"] = this.metric;
+        data["value"] = this.value;
+        data["condition"] = this.condition;
+        data["generatedTriggerEventId"] = this.generatedTriggerEventId;
+        return data;
+    }
+}
+
+export interface ICustomTriggerLog {
+    id?: string;
+    customTriggerRuleId?: string;
+    firedUtc?: Date;
+    deviceId?: string;
+    metric?: string;
+    value?: number;
+    condition?: string;
+    generatedTriggerEventId?: string | undefined;
 }
 
 export class Device implements IDevice {

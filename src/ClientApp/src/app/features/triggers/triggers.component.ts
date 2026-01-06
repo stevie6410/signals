@@ -1,9 +1,10 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TriggersApiService, TriggerEvent } from '../../api/sdhome-client';
+import { TriggersApiService, TriggerEvent, CustomTriggersApiService, CustomTriggerSummary, CustomTriggerRule, CreateCustomTriggerRequest, UpdateCustomTriggerRequest, CustomTriggerType, ThresholdOperator } from '../../api/sdhome-client';
 import { SignalRService } from '../../core/services/signalr.service';
 import { CapabilityMappingService, TranslatedState } from '../../core/services/capability-mapping.service';
+import { DevicesApiService, Device } from '../../api/sdhome-client';
 
 interface FilterOption {
   label: string;
@@ -19,15 +20,41 @@ interface FilterOption {
 })
 export class TriggersComponent implements OnInit {
   private triggersService = inject(TriggersApiService);
+  private customTriggersService = inject(CustomTriggersApiService);
+  private devicesService = inject(DevicesApiService);
   private signalrService = inject(SignalRService);
   private capabilityMapping = inject(CapabilityMappingService);
 
-  // State
+  // Tab state
+  activeTab = signal<'events' | 'custom'>('events');
+
+  // Trigger Events State
   triggers = signal<TriggerEvent[]>([]);
   loading = signal(false);
   searchFilter = signal('');
   typeFilter = signal<string | null>(null);
   showTypeDropdown = false;
+
+  // Custom Triggers State
+  customTriggers = signal<CustomTriggerSummary[]>([]);
+  customTriggersLoading = signal(false);
+  devices = signal<Device[]>([]);
+  showCreateModal = signal(false);
+  editingTrigger = signal<CustomTriggerRule | null>(null);
+  
+  // Form state
+  form = signal({
+    name: '',
+    description: '',
+    enabled: true,
+    triggerType: CustomTriggerType.SensorThreshold,
+    deviceId: '',
+    metric: '',
+    operator: ThresholdOperator.LessThan,
+    threshold: 0,
+    threshold2: null as number | null,
+    cooldownSeconds: 300
+  });
 
   // Live triggers from SignalR
   liveTriggers = this.signalrService.triggerHistory;
@@ -97,6 +124,7 @@ export class TriggersComponent implements OnInit {
   ngOnInit() {
     this.capabilityMapping.ensureLoaded();
     this.loadTriggers();
+    this.loadDevices();
   }
 
   loadTriggers() {
@@ -264,4 +292,213 @@ export class TriggersComponent implements OnInit {
   trackTrigger(index: number, trigger: TriggerEvent): string {
     return trigger.id ?? index.toString();
   }
+
+  // ===== Custom Triggers Methods =====
+
+  switchTab(tab: 'events' | 'custom') {
+    this.activeTab.set(tab);
+    if (tab === 'custom' && this.customTriggers().length === 0) {
+      this.loadCustomTriggers();
+      this.loadDevices();
+    }
+  }
+
+  loadCustomTriggers() {
+    this.customTriggersLoading.set(true);
+    this.customTriggersService.getCustomTriggers().subscribe({
+      next: (data) => {
+        this.customTriggers.set(data);
+        this.customTriggersLoading.set(false);
+      },
+      error: (err) => {
+        console.error('Error loading custom triggers:', err);
+        this.customTriggersLoading.set(false);
+      }
+    });
+  }
+
+  loadDevices() {
+    this.devicesService.getDevices().subscribe({
+      next: (data) => this.devices.set(data),
+      error: (err) => console.error('Error loading devices:', err)
+    });
+  }
+
+  openCreateModal() {
+    this.editingTrigger.set(null);
+    this.resetForm();
+    this.showCreateModal.set(true);
+  }
+
+  openEditModal(trigger: CustomTriggerSummary) {
+    if (!trigger.id) return;
+    this.customTriggersService.getCustomTrigger(trigger.id).subscribe({
+      next: (data) => {
+        this.editingTrigger.set(data);
+        this.form.set({
+          name: data.name || '',
+          description: data.description || '',
+          enabled: data.enabled ?? true,
+          triggerType: data.triggerType!,
+          deviceId: data.deviceId || '',
+          metric: data.metric || '',
+          operator: data.operator!,
+          threshold: data.threshold ?? 0,
+          threshold2: data.threshold2 ?? null,
+          cooldownSeconds: data.cooldownSeconds ?? 300
+        });
+        this.showCreateModal.set(true);
+      },
+      error: (err) => console.error('Error loading trigger:', err)
+    });
+  }
+
+  closeModal() {
+    this.showCreateModal.set(false);
+    this.editingTrigger.set(null);
+    this.resetForm();
+  }
+
+  resetForm() {
+    this.form.set({
+      name: '',
+      description: '',
+      enabled: true,
+      triggerType: CustomTriggerType.SensorThreshold,
+      deviceId: '',
+      metric: '',
+      operator: ThresholdOperator.LessThan,
+      threshold: 0,
+      threshold2: null,
+      cooldownSeconds: 300
+    });
+  }
+
+  async saveTrigger() {
+    const f = this.form();
+    const request = new CreateCustomTriggerRequest({
+      name: f.name,
+      description: f.description || undefined,
+      enabled: f.enabled,
+      triggerType: f.triggerType,
+      deviceId: f.deviceId,
+      metric: f.metric,
+      operator: f.operator,
+      threshold: f.threshold,
+      threshold2: f.threshold2 ?? undefined,
+      cooldownSeconds: f.cooldownSeconds ?? undefined
+    });
+
+    const editing = this.editingTrigger();
+    const observable = editing
+      ? this.customTriggersService.updateCustomTrigger(editing.id!, new UpdateCustomTriggerRequest(request as any))
+      : this.customTriggersService.createCustomTrigger(request);
+
+    observable.subscribe({
+      next: () => {
+        this.loadCustomTriggers();
+        this.closeModal();
+      },
+      error: (err) => {
+        console.error('Error saving custom trigger:', err);
+        alert('Error saving custom trigger: ' + (err.message || 'Unknown error'));
+      }
+    });
+  }
+
+  async toggleCustomTrigger(trigger: CustomTriggerSummary) {
+    if (!trigger.id) return;
+    this.customTriggersService.toggleCustomTrigger(trigger.id, !trigger.enabled).subscribe({
+      next: () => this.loadCustomTriggers(),
+      error: (err) => console.error('Error toggling trigger:', err)
+    });
+  }
+
+  async deleteCustomTrigger(trigger: CustomTriggerSummary) {
+    if (!trigger.id) return;
+    if (!confirm(`Delete custom trigger "${trigger.name}"?`)) return;
+
+    this.customTriggersService.deleteCustomTrigger(trigger.id).subscribe({
+      next: () => this.loadCustomTriggers(),
+      error: (err) => console.error('Error deleting trigger:', err)
+    });
+  }
+
+  getOperatorSymbol(op: string | undefined): string {
+    if (!op) return '?';
+    const operators: Record<string, string> = {
+      'GreaterThan': '>',
+      'GreaterThanOrEqual': '≥',
+      'LessThan': '<',
+      'LessThanOrEqual': '≤',
+      'Equals': '=',
+      'NotEquals': '≠',
+      'Between': 'between'
+    };
+    return operators[op] || op;
+  }
+
+  getMetricOptions(): string[] {
+    return ['temperature', 'humidity', 'battery', 'linkquality', 'pressure', 'co2', 'voc', 'pm25'];
+  }
+
+  getTriggerTypeOptions() {
+    return [
+      { value: CustomTriggerType.SensorThreshold, label: 'Sensor Threshold' },
+      { value: CustomTriggerType.SignalQuality, label: 'Signal Quality' }
+    ];
+  }
+
+  getOperatorOptions() {
+    return [
+      { value: ThresholdOperator.LessThan, label: '<  Less Than' },
+      { value: ThresholdOperator.LessThanOrEqual, label: '≤  Less Than or Equal' },
+      { value: ThresholdOperator.GreaterThan, label: '>  Greater Than' },
+      { value: ThresholdOperator.GreaterThanOrEqual, label: '≥  Greater Than or Equal' },
+      { value: ThresholdOperator.Equals, label: '=  Equals' },
+      { value: ThresholdOperator.NotEquals, label: '≠  Not Equals' },
+      { value: ThresholdOperator.Between, label: 'Between' }
+    ];
+  }
+
+  // Form field update methods
+  updateFormName(value: string) {
+    this.form.update(f => ({ ...f, name: value }));
+  }
+
+  updateFormDescription(value: string) {
+    this.form.update(f => ({ ...f, description: value }));
+  }
+
+  updateFormDeviceId(value: string) {
+    this.form.update(f => ({ ...f, deviceId: value }));
+  }
+
+  updateFormMetric(value: string) {
+    this.form.update(f => ({ ...f, metric: value }));
+  }
+
+  updateFormOperator(value: string) {
+    this.form.update(f => ({ ...f, operator: value as unknown as ThresholdOperator }));
+  }
+
+  updateFormThreshold(value: string) {
+    this.form.update(f => ({ ...f, threshold: +value }));
+  }
+
+  updateFormThreshold2(value: string) {
+    this.form.update(f => ({ ...f, threshold2: +value }));
+  }
+
+  updateFormCooldownSeconds(value: string) {
+    this.form.update(f => ({ ...f, cooldownSeconds: value ? +value : 300 }));
+  }
+
+  updateFormEnabled(value: boolean) {
+    this.form.update(f => ({ ...f, enabled: value }));
+  }
+
+  CustomTriggerType = CustomTriggerType;
+  ThresholdOperator = ThresholdOperator;
 }
+
