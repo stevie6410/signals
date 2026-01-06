@@ -148,6 +148,61 @@ namespace SDHome.Lib.Mappers
                     deviceKind = DeviceKind.ContactSensor;
             }
 
+            // State changes (lights, switches, outlets)
+            // Check for "state" property with ON/OFF values (common for lights and smart plugs)
+            if (payload.TryGetProperty("state", out var stateProp) &&
+                stateProp.ValueKind == JsonValueKind.String)
+            {
+                var state = stateProp.GetString()?.ToUpperInvariant();
+                if (state is "ON" or "OFF")
+                {
+                    capability = "power";
+                    eventType = "state_change";
+                    eventSubType = state.ToLowerInvariant(); // "on" or "off"
+                    value = state == "ON" ? 1.0 : 0.0;
+
+                    // Try to infer device type from other properties
+                    if (deviceKind == DeviceKind.Unknown)
+                    {
+                        // Check for power monitoring properties (indicates smart plug/outlet)
+                        if (payload.TryGetProperty("power", out _) ||
+                            payload.TryGetProperty("current", out _) ||
+                            payload.TryGetProperty("energy", out _) ||
+                            payload.TryGetProperty("voltage", out _))
+                        {
+                            deviceKind = DeviceKind.Outlet;
+                        }
+                        // Check for brightness (indicates light)
+                        else if (payload.TryGetProperty("brightness", out _) ||
+                                 payload.TryGetProperty("color_temp", out _) ||
+                                 payload.TryGetProperty("color", out _))
+                        {
+                            deviceKind = DeviceKind.Light;
+                        }
+                        // Default to switch if we can't determine
+                        else
+                        {
+                            deviceKind = DeviceKind.Switch;
+                        }
+                    }
+                }
+            }
+
+            // Power measurement (energy monitoring devices)
+            // Only treat as primary capability if we haven't identified state changes above
+            if (capability == "unknown" && 
+                payload.TryGetProperty("power", out var powerProp) &&
+                powerProp.ValueKind == JsonValueKind.Number)
+            {
+                capability = "power_meter";
+                eventType = "measurement";
+                eventSubType = "current_power";
+                value = powerProp.GetDouble();
+
+                if (deviceKind == DeviceKind.Unknown)
+                    deviceKind = DeviceKind.Outlet;
+            }
+
             // Trigger vs telemetry
             var category = EventCategory.Telemetry;
             if (deviceKind is DeviceKind.Button or DeviceKind.MotionSensor or DeviceKind.ContactSensor
