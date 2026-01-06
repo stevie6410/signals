@@ -9,6 +9,20 @@ jobs:
   deploy:
     runs-on: self-hosted   # use your self-hosted runner
     steps:
+      # Clean up disk space and runner cache before deployment
+      - name: Clean up disk space
+        run: |
+          echo "Disk usage before cleanup:"
+          df -h
+          echo "Cleaning Docker resources..."
+          docker system prune -af --volumes || true
+          echo "Cleaning runner diagnostics and temp files..."
+          sudo rm -f /home/actions-runner/_diag/*.log || true
+          sudo find /home/actions-runner/_work/_temp -type f -delete || true
+          sudo find /home/actions-runner/_work -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} + || true
+          echo "Disk usage after cleanup:"
+          df -h
+
       # Optional: just prints context so you can debug if needed
       - name: Show runner info
         run: |
