@@ -376,7 +376,7 @@ export class TriggersComponent implements OnInit {
 
   async saveTrigger() {
     const f = this.form();
-    const request = new CreateCustomTriggerRequest({
+    const requestData = {
       name: f.name,
       description: f.description || undefined,
       enabled: f.enabled,
@@ -387,12 +387,12 @@ export class TriggersComponent implements OnInit {
       threshold: f.threshold,
       threshold2: f.threshold2 ?? undefined,
       cooldownSeconds: f.cooldownSeconds ?? undefined
-    });
+    };
 
     const editing = this.editingTrigger();
     const observable = editing
-      ? this.customTriggersService.updateCustomTrigger(editing.id!, new UpdateCustomTriggerRequest(request as any))
-      : this.customTriggersService.createCustomTrigger(request);
+      ? this.customTriggersService.updateCustomTrigger(editing.id!, new UpdateCustomTriggerRequest(requestData))
+      : this.customTriggersService.createCustomTrigger(new CreateCustomTriggerRequest(requestData));
 
     observable.subscribe({
       next: () => {
