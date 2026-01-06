@@ -28,6 +28,7 @@ public class ZoneEntity
     public ZoneEntity? ParentZone { get; set; }
     public ICollection<ZoneEntity> ChildZones { get; set; } = [];
     public ICollection<DeviceEntity> Devices { get; set; } = [];
+    public ICollection<ZoneCapabilityAssignmentEntity> CapabilityAssignments { get; set; } = [];
 
     public Zone ToModel(bool includeChildren = false, bool includeParent = false)
     {

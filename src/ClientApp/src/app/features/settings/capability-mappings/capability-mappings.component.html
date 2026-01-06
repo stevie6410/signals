@@ -1,0 +1,340 @@
+<div class="capability-mappings">
+  <header class="page-header">
+    <div class="header-content">
+      <h1>⚙️ Capability Mappings</h1>
+      <p class="subtitle">Configure how device states are displayed and used in automations</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="seedDefaults()">
+        🌱 Seed Defaults
+      </button>
+      <button class="btn-primary" (click)="startCreate()">
+        ➕ Add Mapping
+      </button>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <span>Loading mappings...</span>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="error-state">
+      <span class="error-icon">⚠️</span>
+      <span>{{ error() }}</span>
+      <button class="btn-secondary" (click)="loadMappings()">Retry</button>
+    </div>
+  }
+
+  @if (!loading() && !error()) {
+    <div class="content-layout">
+      <!-- Mappings List -->
+      <div class="mappings-panel">
+        <!-- Boolean/State Mappings -->
+        <section class="mapping-section">
+          <h2>🔘 State Mappings</h2>
+          <p class="section-description">Capabilities with discrete states (on/off, open/closed, etc.)</p>
+
+          <div class="mapping-list">
+            @for (mapping of booleanMappings(); track mapping.id) {
+              <div
+                class="mapping-card"
+                [class.selected]="selectedMapping()?.id === mapping.id"
+                [class.system-default]="mapping.isSystemDefault"
+                (click)="selectMapping(mapping)"
+              >
+                <div class="mapping-header">
+                  <span class="mapping-icon">{{ mapping.icon || '📊' }}</span>
+                  <div class="mapping-info">
+                    <span class="mapping-name">{{ mapping.displayName }}</span>
+                    <span class="mapping-capability">{{ mapping.capability }}</span>
+                  </div>
+                  @if (mapping.isSystemDefault) {
+                    <span class="system-badge" title="System default">🔒</span>
+                  }
+                </div>
+                <div class="state-preview">
+                  @for (state of mapping.stateMappings; track state.friendlyName) {
+                    <span
+                      class="state-chip"
+                      [style.--state-color]="state.color || 'gray'"
+                      [class.active]="state.isActive"
+                    >
+                      {{ state.icon }} {{ state.friendlyName }}
+                    </span>
+                  }
+                </div>
+              </div>
+            } @empty {
+              <div class="empty-section">
+                <span>No state mappings defined</span>
+              </div>
+            }
+          </div>
+        </section>
+
+        <!-- Numeric Mappings -->
+        <section class="mapping-section">
+          <h2>📊 Numeric Mappings</h2>
+          <p class="section-description">Capabilities with numeric values (temperature, humidity, etc.)</p>
+
+          <div class="mapping-list">
+            @for (mapping of numericMappings(); track mapping.id) {
+              <div
+                class="mapping-card"
+                [class.selected]="selectedMapping()?.id === mapping.id"
+                [class.system-default]="mapping.isSystemDefault"
+                (click)="selectMapping(mapping)"
+              >
+                <div class="mapping-header">
+                  <span class="mapping-icon">{{ mapping.icon || '📊' }}</span>
+                  <div class="mapping-info">
+                    <span class="mapping-name">{{ mapping.displayName }}</span>
+                    <span class="mapping-capability">{{ mapping.capability }}</span>
+                  </div>
+                  @if (mapping.unit) {
+                    <span class="unit-badge">{{ mapping.unit }}</span>
+                  }
+                  @if (mapping.isSystemDefault) {
+                    <span class="system-badge" title="System default">🔒</span>
+                  }
+                </div>
+              </div>
+            } @empty {
+              <div class="empty-section">
+                <span>No numeric mappings defined</span>
+              </div>
+            }
+          </div>
+        </section>
+      </div>
+
+      <!-- Detail/Edit Panel -->
+      <div class="detail-panel">
+        @if (isEditing()) {
+          <!-- Edit Form -->
+          <div class="edit-form">
+            <h3>{{ selectedMapping() ? 'Edit Mapping' : 'New Mapping' }}</h3>
+
+            <div class="form-group">
+              <label>Capability *</label>
+              <input
+                type="text"
+                [ngModel]="editForm().capability"
+                (ngModelChange)="updateFormField('capability', $event)"
+                placeholder="e.g., occupancy, motion, contact"
+              >
+              <span class="hint">The internal capability name (matches MQTT property)</span>
+            </div>
+
+            <div class="form-group">
+              <label>Property *</label>
+              <input
+                type="text"
+                [ngModel]="editForm().property"
+                (ngModelChange)="updateFormField('property', $event)"
+                placeholder="e.g., occupancy, state"
+              >
+              <span class="hint">The property name in device payloads</span>
+            </div>
+
+            <div class="form-group">
+              <label>Display Name *</label>
+              <input
+                type="text"
+                [ngModel]="editForm().displayName"
+                (ngModelChange)="updateFormField('displayName', $event)"
+                placeholder="e.g., Presence, Motion, Door State"
+              >
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Icon</label>
+                <input
+                  type="text"
+                  [ngModel]="editForm().icon"
+                  (ngModelChange)="updateFormField('icon', $event)"
+                  placeholder="e.g., 👤, 🚪, 🌡️"
+                >
+              </div>
+              <div class="form-group">
+                <label>Unit</label>
+                <input
+                  type="text"
+                  [ngModel]="editForm().unit"
+                  (ngModelChange)="updateFormField('unit', $event)"
+                  placeholder="e.g., °C, %, lx"
+                >
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Device Type (optional)</label>
+              <input
+                type="text"
+                [ngModel]="editForm().deviceType"
+                (ngModelChange)="updateFormField('deviceType', $event)"
+                placeholder="Restrict to specific device type"
+              >
+            </div>
+
+            <!-- State Mappings -->
+            <div class="state-mappings-section">
+              <div class="section-header">
+                <h4>State Mappings</h4>
+                <button type="button" class="btn-small" (click)="addStateMapping()">
+                  ➕ Add State
+                </button>
+              </div>
+
+              @for (state of editStateMappings(); track $index; let i = $index) {
+                <div class="state-mapping-row">
+                  <input
+                    type="text"
+                    [ngModel]="formatRawValue(state.rawValue)"
+                    (ngModelChange)="updateStateMapping(i, 'rawValue', parseRawValue($event))"
+                    placeholder="Raw value (true, false, ON, OFF)"
+                    class="raw-input"
+                  >
+                  <span class="arrow">→</span>
+                  <input
+                    type="text"
+                    [ngModel]="state.friendlyName"
+                    (ngModelChange)="updateStateMapping(i, 'friendlyName', $event)"
+                    placeholder="Friendly name"
+                    class="friendly-input"
+                  >
+                  <input
+                    type="text"
+                    [ngModel]="state.icon"
+                    (ngModelChange)="updateStateMapping(i, 'icon', $event)"
+                    placeholder="Icon"
+                    class="icon-input"
+                  >
+                  <input
+                    type="text"
+                    [ngModel]="state.color"
+                    (ngModelChange)="updateStateMapping(i, 'color', $event)"
+                    placeholder="Color"
+                    class="color-input"
+                  >
+                  <label class="active-toggle">
+                    <input
+                      type="checkbox"
+                      [ngModel]="state.isActive"
+                      (ngModelChange)="updateStateMapping(i, 'isActive', $event)"
+                    >
+                    Active
+                  </label>
+                  <button type="button" class="btn-icon danger" (click)="removeStateMapping(i)">
+                    🗑️
+                  </button>
+                </div>
+              }
+
+              @if (editStateMappings().length === 0) {
+                <p class="no-states">No state mappings (numeric capability)</p>
+              }
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn-secondary" (click)="cancelEdit()">
+                Cancel
+              </button>
+              <button type="button" class="btn-primary" (click)="saveMapping()">
+                💾 Save
+              </button>
+            </div>
+          </div>
+        } @else if (selectedMapping()) {
+          <!-- View Detail -->
+          <div class="mapping-detail">
+            <div class="detail-header">
+              <span class="detail-icon">{{ selectedMapping()!.icon || '📊' }}</span>
+              <h3>{{ selectedMapping()!.displayName }}</h3>
+              @if (selectedMapping()!.isSystemDefault) {
+                <span class="system-badge">System Default</span>
+              }
+            </div>
+
+            <div class="detail-info">
+              <div class="info-row">
+                <span class="label">Capability:</span>
+                <code>{{ selectedMapping()!.capability }}</code>
+              </div>
+              <div class="info-row">
+                <span class="label">Property:</span>
+                <code>{{ selectedMapping()!.property }}</code>
+              </div>
+              @if (selectedMapping()!.unit) {
+                <div class="info-row">
+                  <span class="label">Unit:</span>
+                  <span>{{ selectedMapping()!.unit }}</span>
+                </div>
+              }
+              @if (selectedMapping()!.deviceType) {
+                <div class="info-row">
+                  <span class="label">Device Type:</span>
+                  <span>{{ selectedMapping()!.deviceType }}</span>
+                </div>
+              }
+            </div>
+
+            @if (selectedMapping()!.stateMappings && selectedMapping()!.stateMappings!.length > 0) {
+              <div class="state-mappings-detail">
+                <h4>State Translations</h4>
+                <table class="states-table">
+                  <thead>
+                    <tr>
+                      <th>Raw Value</th>
+                      <th>Display</th>
+                      <th>Icon</th>
+                      <th>Color</th>
+                      <th>Active</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (state of selectedMapping()!.stateMappings; track state.friendlyName) {
+                      <tr>
+                        <td><code>{{ formatRawValue(state.rawValue) }}</code></td>
+                        <td>{{ state.friendlyName }}</td>
+                        <td>{{ state.icon }}</td>
+                        <td>
+                          <span class="color-preview" [style.background]="state.color"></span>
+                          {{ state.color }}
+                        </td>
+                        <td>{{ state.isActive ? '✓' : '' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+
+            <div class="detail-actions">
+              <button class="btn-secondary" (click)="startEdit(selectedMapping()!)">
+                ✏️ Edit
+              </button>
+              @if (!selectedMapping()!.isSystemDefault) {
+                <button class="btn-danger" (click)="deleteMapping(selectedMapping()!)">
+                  🗑️ Delete
+                </button>
+              }
+            </div>
+          </div>
+        } @else {
+          <!-- Empty State -->
+          <div class="empty-detail">
+            <span class="empty-icon">⚙️</span>
+            <h3>Select a Mapping</h3>
+            <p>Click on a mapping to view details or create a new one</p>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

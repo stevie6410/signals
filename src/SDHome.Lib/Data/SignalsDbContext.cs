@@ -10,7 +10,8 @@ public class SignalsDbContext(DbContextOptions<SignalsDbContext> options) : DbCo
     public DbSet<TriggerEventEntity> TriggerEvents => Set<TriggerEventEntity>();
     public DbSet<DeviceEntity> Devices => Set<DeviceEntity>();
     public DbSet<ZoneEntity> Zones => Set<ZoneEntity>();
-    
+    public DbSet<ZoneCapabilityAssignmentEntity> ZoneCapabilityAssignments => Set<ZoneCapabilityAssignmentEntity>();
+
     // Automation entities
     public DbSet<AutomationRuleEntity> AutomationRules => Set<AutomationRuleEntity>();
     public DbSet<AutomationTriggerEntity> AutomationTriggers => Set<AutomationTriggerEntity>();
@@ -18,6 +19,9 @@ public class SignalsDbContext(DbContextOptions<SignalsDbContext> options) : DbCo
     public DbSet<AutomationActionEntity> AutomationActions => Set<AutomationActionEntity>();
     public DbSet<AutomationExecutionLogEntity> AutomationExecutionLogs => Set<AutomationExecutionLogEntity>();
     public DbSet<SceneEntity> Scenes => Set<SceneEntity>();
+
+    // Settings entities
+    public DbSet<CapabilityMappingEntity> CapabilityMappings => Set<CapabilityMappingEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -124,7 +128,7 @@ public class SignalsDbContext(DbContextOptions<SignalsDbContext> options) : DbCo
             entity.HasIndex(e => e.Room).HasDatabaseName("idx_devices_room");
             entity.HasIndex(e => e.DeviceType).HasDatabaseName("idx_devices_device_type");
             entity.HasIndex(e => e.IsAvailable).HasDatabaseName("idx_devices_is_available");
-            
+
             // Zone relationship
             entity.Property(e => e.ZoneId).HasColumnName("zone_id");
             entity.HasIndex(e => e.ZoneId).HasDatabaseName("idx_devices_zone_id");
@@ -158,6 +162,42 @@ public class SignalsDbContext(DbContextOptions<SignalsDbContext> options) : DbCo
 
             entity.HasIndex(e => e.ParentZoneId).HasDatabaseName("idx_zones_parent_zone_id");
             entity.HasIndex(e => e.Name).HasDatabaseName("idx_zones_name");
+        });
+
+        // ZoneCapabilityAssignment configuration
+        modelBuilder.Entity<ZoneCapabilityAssignmentEntity>(entity =>
+        {
+            entity.ToTable("zone_capability_assignments");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ZoneId).HasColumnName("zone_id");
+            entity.Property(e => e.Capability).HasColumnName("capability").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.DeviceId).HasColumnName("device_id").HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Property).HasColumnName("property").HasMaxLength(255);
+            entity.Property(e => e.Priority).HasColumnName("priority");
+            entity.Property(e => e.DisplayName).HasColumnName("display_name").HasMaxLength(255);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("datetime2");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("datetime2");
+
+            entity.HasOne(e => e.Zone)
+                .WithMany(z => z.CapabilityAssignments)
+                .HasForeignKey(e => e.ZoneId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Device)
+                .WithMany()
+                .HasForeignKey(e => e.DeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Unique constraint: one capability per zone per priority
+            entity.HasIndex(e => new { e.ZoneId, e.Capability, e.Priority })
+                .HasDatabaseName("idx_zone_capability_assignments_unique")
+                .IsUnique();
+
+            entity.HasIndex(e => e.ZoneId).HasDatabaseName("idx_zone_capability_assignments_zone_id");
+            entity.HasIndex(e => e.DeviceId).HasDatabaseName("idx_zone_capability_assignments_device_id");
+            entity.HasIndex(e => e.Capability).HasDatabaseName("idx_zone_capability_assignments_capability");
         });
 
         // ===== AUTOMATION ENTITIES =====
@@ -316,6 +356,29 @@ public class SignalsDbContext(DbContextOptions<SignalsDbContext> options) : DbCo
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("datetime2");
 
             entity.HasIndex(e => e.Name).HasDatabaseName("idx_scenes_name");
+        });
+
+        // CapabilityMapping configuration
+        modelBuilder.Entity<CapabilityMappingEntity>(entity =>
+        {
+            entity.ToTable("capability_mappings");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Capability).HasColumnName("capability").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.DeviceType).HasColumnName("device_type").HasMaxLength(100);
+            entity.Property(e => e.Property).HasColumnName("property").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.DisplayName).HasColumnName("display_name").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Icon).HasColumnName("icon").HasMaxLength(50);
+            entity.Property(e => e.StateMappings).HasColumnName("state_mappings").HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Unit).HasColumnName("unit").HasMaxLength(20);
+            entity.Property(e => e.IsSystemDefault).HasColumnName("is_system_default");
+            entity.Property(e => e.DisplayOrder).HasColumnName("display_order");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("datetime2");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("datetime2");
+
+            entity.HasIndex(e => e.Capability).HasDatabaseName("idx_capability_mappings_capability");
+            entity.HasIndex(e => new { e.Capability, e.DeviceType }).HasDatabaseName("idx_capability_mappings_cap_device");
         });
     }
 }

@@ -2,6 +2,7 @@ import { Component, OnInit, signal, computed, inject, ViewChildren, QueryList, A
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { CdkDragDrop, CdkDrag, CdkDropList, CdkDropListGroup, CdkDragPlaceholder, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 
 interface Zone {
@@ -18,8 +19,10 @@ interface Zone {
 interface Device {
   deviceId: string;
   friendlyName: string;
+  displayName?: string;
   manufacturer?: string;
   deviceType?: string | number;
+  imageUrl?: string;
   zoneId?: number;
   isAvailable: boolean;
 }
@@ -33,6 +36,7 @@ interface Device {
 })
 export class ZoneManagerComponent implements OnInit, AfterViewInit {
   private http = inject(HttpClient);
+  private router = inject(Router);
 
   @ViewChildren(CdkDropList) dropLists!: QueryList<CdkDropList>;
 
@@ -219,5 +223,10 @@ export class ZoneManagerComponent implements OnInit, AfterViewInit {
     };
     flatten(this.zones(), 0);
     return result;
+  }
+
+  // Navigate to capability editor page for a zone
+  openCapabilityEditor(zoneId: number) {
+    this.router.navigate(['/zones', zoneId, 'capabilities']);
   }
 }

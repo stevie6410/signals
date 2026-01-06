@@ -557,3 +557,55 @@ hr, .divider {
     display: none;
   }
 }
+
+/* CDK Drag and Drop - Global Styles */
+.cdk-drag-preview {
+  z-index: 99999 !important;
+  position: fixed !important;
+  box-sizing: border-box;
+  border-radius: 8px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5), 0 0 0 2px var(--accent-primary);
+  background: var(--surface-2) !important;
+  pointer-events: none;
+  /* Ensure preview is never clipped */
+  transform: translateZ(0);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.3;
+  background: var(--surface-3);
+  border: 2px dashed var(--accent-primary);
+  border-radius: 8px;
+}
+
+/* Disable ALL drag animations for instant response */
+.cdk-drag-animating {
+  transition: none !important;
+}
+
+.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+  transition: none !important;
+}
+
+.cdk-drag {
+  transition: none !important;
+}
+
+/* Ensure drag overlay container is above everything */
+.cdk-overlay-container {
+  z-index: 99999 !important;
+  pointer-events: none;
+}
+
+.cdk-overlay-container > * {
+  pointer-events: auto;
+}
+
+.cdk-global-overlay-wrapper {
+  z-index: 99999 !important;
+}
+
+/* Fix for drag preview being clipped by parent overflow */
+.cdk-drag-preview.drag-preview-elevated {
+  z-index: 99999 !important;
+}

@@ -88,13 +88,14 @@
   border: 1px solid var(--border-secondary);
   border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
   text-align: left;
   width: 100%;
+  // Prevent layout shift
+  min-height: 80px;
 
   &:hover {
     border-color: var(--border-primary);
-    transform: translateY(-2px);
   }
 
   &.selected {
@@ -103,14 +104,21 @@
     background: rgba(0, 245, 255, 0.05);
   }
 
+  // Value update flash animation
+  &.value-changed {
+    animation: valueFlash 0.6s ease-out;
+  }
+
   .metric-icon {
     font-size: 1.5rem;
+    flex-shrink: 0;
   }
 
   .metric-content {
     display: flex;
     flex-direction: column;
     flex: 1;
+    min-width: 0;
   }
 
   .metric-value {
@@ -118,6 +126,18 @@
     font-weight: 700;
     color: var(--text-primary);
     font-family: 'JetBrains Mono', monospace;
+    transition: color 0.3s ease;
+
+    // Animate number changes
+    &.value-up {
+      color: var(--success);
+      animation: pulseUp 0.5s ease-out;
+    }
+
+    &.value-down {
+      color: var(--danger);
+      animation: pulseDown 0.5s ease-out;
+    }
   }
 
   .metric-label {
@@ -125,22 +145,100 @@
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .metric-trend {
     font-size: 1rem;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+    transition: transform 0.3s ease, color 0.3s ease;
 
     &.up {
       color: var(--success);
+      animation: trendUp 0.4s ease-out;
     }
 
     &.down {
       color: var(--danger);
+      animation: trendDown 0.4s ease-out;
     }
 
     &.stable {
       color: var(--text-muted);
     }
+  }
+}
+
+// Value change animations
+@keyframes valueFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 245, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(0, 245, 255, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 245, 255, 0);
+  }
+}
+
+@keyframes pulseUp {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+    text-shadow: 0 0 10px var(--success);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulseDown {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+    text-shadow: 0 0 10px var(--danger);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes trendUp {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes trendDown {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(4px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 

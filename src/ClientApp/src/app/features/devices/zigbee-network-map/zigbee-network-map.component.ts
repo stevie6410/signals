@@ -94,7 +94,7 @@ interface SimLink {
                    [class.router]="isRouter(node)"
                    [class.end-device]="isEndDevice(node)"
                    [class.selected]="selectedNode()?.ieeeAddress === node.ieeeAddress">
-                  
+
                   <!-- Node circle -->
                   <circle
                     [attr.r]="getNodeRadius(node)"
@@ -103,7 +103,7 @@ interface SimLink {
                     [attr.stroke-width]="2 / scale()"
                     class="node-circle"
                   />
-                  
+
                   <!-- Device image or icon -->
                   @if (node.imageUrl && !isCoordinator(node)) {
                     <clipPath [id]="'clip-' + node.ieeeAddress">
@@ -123,16 +123,16 @@ interface SimLink {
                       {{ getNodeIcon(node) }}
                     </text>
                   }
-                  
+
                   <!-- Label -->
-                  <text 
-                    class="node-label" 
-                    [attr.y]="getNodeRadius(node) + 14" 
+                  <text
+                    class="node-label"
+                    [attr.y]="getNodeRadius(node) + 14"
                     text-anchor="middle"
                     [attr.font-size]="10 / scale()">
                     {{ node.friendlyName }}
                   </text>
-                  
+
                   <!-- LQI indicator -->
                   @if (node.linkQuality !== undefined && !isCoordinator(node)) {
                     <g [attr.transform]="'translate(' + (getNodeRadius(node) - 5) + ',' + (-getNodeRadius(node) + 5) + ')'">
@@ -628,7 +628,7 @@ interface SimLink {
 })
 export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewInit {
   private apiService = inject(DevicesApiService);
-  
+
   @ViewChild('svgElement') svgElement!: ElementRef<SVGSVGElement>;
   @ViewChild('canvasContainer') canvasContainer!: ElementRef<HTMLDivElement>;
 
@@ -636,27 +636,27 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
   loading = signal(false);
   error = signal<string | null>(null);
   selectedNode = signal<SimNode | null>(null);
-  
+
   // Simulation state
   simulationNodes = signal<SimNode[]>([]);
   simulationLinks = signal<SimLink[]>([]);
-  
+
   // Pan/zoom state - using simple transform approach
   private panX = 0;
   private panY = 0;
   scale = signal(1);
   transform = signal('translate(0, 0) scale(1)');
-  
+
   // Interaction state
   private isPanning = false;
   private lastMouseX = 0;
   private lastMouseY = 0;
   private draggedNode: SimNode | null = null;
-  
+
   // Simulation
   private animationFrameId: number | null = null;
   private simulationRunning = false;
-  
+
   coordinatorCount = computed(() => this.simulationNodes().filter(n => n.type === ZigbeeDeviceType.Coordinator).length);
   routerCount = computed(() => this.simulationNodes().filter(n => n.type === ZigbeeDeviceType.Router).length);
   endDeviceCount = computed(() => this.simulationNodes().filter(n => n.type === ZigbeeDeviceType.EndDevice).length);
@@ -677,7 +677,7 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
   async refreshMap() {
     this.loading.set(true);
     this.error.set(null);
-    
+
     try {
       const map = await this.apiService.getNetworkMap().toPromise();
       if (map) {
@@ -694,11 +694,11 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
 
   private initializeSimulation(map: ZigbeeNetworkMap) {
     const apiNodes = map.nodes || [];
-    
+
     // Initialize node positions centered around 0,0
     const nodes: SimNode[] = apiNodes.map((node, index) => {
       let x: number, y: number;
-      
+
       if (node.type === ZigbeeDeviceType.Coordinator) {
         // Coordinator at center (0,0)
         x = 0;
@@ -749,7 +749,7 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
 
     this.simulationNodes.set(nodes);
     this.simulationLinks.set(links);
-    
+
     // Initialize transform to center on the canvas
     const width = this.canvasContainer?.nativeElement?.clientWidth || 800;
     const height = this.canvasContainer?.nativeElement?.clientHeight || 600;
@@ -757,7 +757,7 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
     this.panY = height / 2;
     this.scale.set(1);
     this.updateTransform();
-    
+
     // Start physics simulation
     this.startSimulation();
   }
@@ -780,10 +780,10 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
 
     const nodes = [...this.simulationNodes()];
     const links = this.simulationLinks();
-    
+
     // Apply forces
     this.applyForces(nodes, links);
-    
+
     // Update positions
     for (const node of nodes) {
       if (node.fx !== null && node.fx !== undefined) {
@@ -793,7 +793,7 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
         node.vx *= 0.9; // Damping
         node.x += node.vx;
       }
-      
+
       if (node.fy !== null && node.fy !== undefined) {
         node.y = node.fy;
         node.vy = 0;
@@ -822,10 +822,10 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
         const dy = nodes[j].y - nodes[i].y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
         const force = 1000 / (dist * dist);
-        
+
         const fx = (dx / dist) * force;
         const fy = (dy / dist) * force;
-        
+
         nodes[i].vx -= fx;
         nodes[i].vy -= fy;
         nodes[j].vx += fx;
@@ -837,17 +837,17 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
     for (const link of links) {
       const source = nodes.find(n => n.ieeeAddress === link.sourceIeeeAddress);
       const target = nodes.find(n => n.ieeeAddress === link.targetIeeeAddress);
-      
+
       if (source && target) {
         const dx = target.x - source.x;
         const dy = target.y - source.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
         const targetDist = 100;
         const force = (dist - targetDist) * 0.01;
-        
+
         const fx = (dx / dist) * force;
         const fy = (dy / dist) * force;
-        
+
         source.vx += fx;
         source.vy += fy;
         target.vx -= fx;
@@ -959,8 +959,8 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
 
   getConnectionCount(node: SimNode): number {
     const links = this.simulationLinks();
-    return links.filter(l => 
-      l.sourceIeeeAddress === node.ieeeAddress || 
+    return links.filter(l =>
+      l.sourceIeeeAddress === node.ieeeAddress ||
       l.targetIeeeAddress === node.ieeeAddress
     ).length;
   }
@@ -968,7 +968,7 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
   formatLastSeen(date: Date): string {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    
+
     if (diff < 60000) return 'Just now';
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
@@ -994,7 +994,7 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
     const target = event.target as Element;
     if (target.tagName === 'svg' || target.classList.contains('link') || target.closest('.network-canvas-container') === event.currentTarget) {
       if (target.closest('.node-group')) return; // Don't pan when clicking on nodes
-      
+
       this.isPanning = true;
       this.lastMouseX = event.clientX;
       this.lastMouseY = event.clientY;
@@ -1008,28 +1008,28 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
       // Dragging a node
       const rect = this.canvasContainer.nativeElement.getBoundingClientRect();
       const currentScale = this.scale();
-      
+
       // Convert screen coordinates to SVG coordinates
       const svgX = (event.clientX - rect.left - this.panX) / currentScale;
       const svgY = (event.clientY - rect.top - this.panY) / currentScale;
-      
+
       this.draggedNode.fx = svgX;
       this.draggedNode.fy = svgY;
       this.draggedNode.x = svgX;
       this.draggedNode.y = svgY;
-      
+
       this.simulationNodes.set([...this.simulationNodes()]);
     } else if (this.isPanning) {
       // Panning the canvas
       const deltaX = event.clientX - this.lastMouseX;
       const deltaY = event.clientY - this.lastMouseY;
-      
+
       this.panX += deltaX;
       this.panY += deltaY;
-      
+
       this.lastMouseX = event.clientX;
       this.lastMouseY = event.clientY;
-      
+
       this.updateTransform();
     }
   }
@@ -1054,25 +1054,25 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
 
   onCanvasWheel(event: WheelEvent) {
     event.preventDefault();
-    
+
     const rect = this.canvasContainer.nativeElement.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
-    
+
     // Determine zoom direction with smooth factor
     const zoomFactor = event.deltaY < 0 ? 1.08 : 0.92;
     const oldScale = this.scale();
     let newScale = oldScale * zoomFactor;
-    
+
     // Clamp scale between 0.2 and 4
     newScale = Math.max(0.2, Math.min(4, newScale));
-    
+
     // Zoom toward mouse position
     // The idea: keep the point under the mouse stationary
     const scaleRatio = newScale / oldScale;
     this.panX = mouseX - (mouseX - this.panX) * scaleRatio;
     this.panY = mouseY - (mouseY - this.panY) * scaleRatio;
-    
+
     this.scale.set(newScale);
     this.updateTransform();
   }
@@ -1085,12 +1085,12 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
     // Reset to center the content
     const width = this.canvasContainer?.nativeElement?.clientWidth || 800;
     const height = this.canvasContainer?.nativeElement?.clientHeight || 600;
-    
+
     this.panX = width / 2;
     this.panY = height / 2;
     this.scale.set(1);
     this.updateTransform();
-    
+
     // Also re-center the simulation
     this.centerSimulation();
   }
@@ -1098,28 +1098,28 @@ export class ZigbeeNetworkMapComponent implements OnInit, OnDestroy, AfterViewIn
   private centerSimulation() {
     const nodes = this.simulationNodes();
     if (nodes.length === 0) return;
-    
+
     // Calculate bounds
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
-    
+
     for (const node of nodes) {
       minX = Math.min(minX, node.x);
       maxX = Math.max(maxX, node.x);
       minY = Math.min(minY, node.y);
       maxY = Math.max(maxY, node.y);
     }
-    
+
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
-    
+
     // Move all nodes so the center is at 0,0
     const updatedNodes = nodes.map(n => ({
       ...n,
       x: n.x - centerX,
       y: n.y - centerY
     }));
-    
+
     this.simulationNodes.set(updatedNodes);
   }
 }

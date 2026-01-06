@@ -62,20 +62,70 @@ namespace SDHome.Lib.Mappers
                 && actionProp.ValueKind == JsonValueKind.String)
             {
                 var action = actionProp.GetString() ?? string.Empty;
+                
+                // Skip empty actions (some devices send action: "" on state updates)
+                if (!string.IsNullOrEmpty(action))
+                {
+                    capability = "button";
+                    eventType = "press";
+                    
+                    // Parse multi-button actions like "button_1_single", "button_2_double", etc.
+                    // Also handles simple actions like "single", "double", "hold", "release"
+                    var (buttonSource, actionType) = ParseButtonAction(action);
+                    
+                    // Store button source in capability if it's a multi-button device
+                    if (buttonSource != null)
+                    {
+                        capability = buttonSource; // e.g., "button_1", "button_2"
+                    }
+                    
+                    eventSubType = actionType; // e.g., "single", "double", "hold", "release"
 
-                capability = "button";
-                eventType = "press";
-
-                var parts = action.Split('_', StringSplitOptions.RemoveEmptyEntries);
-                eventSubType = parts.Length == 2 ? parts[1] : action;
-
-                if (deviceKind == DeviceKind.Unknown)
-                    deviceKind = DeviceKind.Button;
+                    if (deviceKind == DeviceKind.Unknown)
+                        deviceKind = DeviceKind.Button;
+                }
             }
 
-            // Temperature
-            if (payload.TryGetProperty("temperature", out var tempProp)
-                && tempProp.ValueKind == JsonValueKind.Number)
+            // Check for temperature first to determine sensor type priority
+            bool hasTemperature = payload.TryGetProperty("temperature", out var tempProp)
+                && tempProp.ValueKind == JsonValueKind.Number;
+            
+            // Occupancy sensors (presence detection - typically mmWave/radar based)
+            // These report "occupancy" property and detect presence, not just motion
+            if (payload.TryGetProperty("occupancy", out var occProp) &&
+                (occProp.ValueKind == JsonValueKind.True || occProp.ValueKind == JsonValueKind.False))
+            {
+                // Only classify as occupancy if it's actually detecting (true) 
+                // OR if there's no temperature reading (dedicated presence sensor)
+                if (occProp.GetBoolean() || !hasTemperature)
+                {
+                    capability = "occupancy";
+                    eventType = "detection";
+                    eventSubType = occProp.GetBoolean() ? "present" : "clear";
+
+                    if (deviceKind == DeviceKind.Unknown)
+                        deviceKind = DeviceKind.MotionSensor; // Will need OccupancySensor type eventually
+                }
+            }
+            
+            // Motion sensors (PIR-based motion detection)
+            // These report "motion" property for instantaneous motion events
+            if (payload.TryGetProperty("motion", out var motionProp) &&
+                (motionProp.ValueKind == JsonValueKind.True || motionProp.ValueKind == JsonValueKind.False))
+            {
+                if (motionProp.GetBoolean() || !hasTemperature)
+                {
+                    capability = "motion";
+                    eventType = "detection";
+                    eventSubType = motionProp.GetBoolean() ? "active" : "inactive";
+
+                    if (deviceKind == DeviceKind.Unknown)
+                        deviceKind = DeviceKind.MotionSensor;
+                }
+            }
+
+            // Temperature - takes priority over presence sensors if present
+            if (hasTemperature)
             {
                 capability = "temperature";
                 eventType = "measurement";
@@ -84,18 +134,6 @@ namespace SDHome.Lib.Mappers
 
                 if (deviceKind == DeviceKind.Unknown)
                     deviceKind = DeviceKind.Thermometer;
-            }
-
-            // Motion
-            if (payload.TryGetProperty("occupancy", out var occProp) &&
-                (occProp.ValueKind == JsonValueKind.True || occProp.ValueKind == JsonValueKind.False))
-            {
-                capability = "motion";
-                eventType = "detection";
-                eventSubType = occProp.GetBoolean() ? "active" : "inactive";
-
-                if (deviceKind == DeviceKind.Unknown)
-                    deviceKind = DeviceKind.MotionSensor;
             }
 
             // Contact sensors (door/window sensors)
@@ -113,7 +151,7 @@ namespace SDHome.Lib.Mappers
             // Trigger vs telemetry
             var category = EventCategory.Telemetry;
             if (deviceKind is DeviceKind.Button or DeviceKind.MotionSensor or DeviceKind.ContactSensor
-                && capability is "button" or "motion" or "contact"
+                && capability is "button" or "motion" or "occupancy" or "contact"
                 && eventType is "press" or "detection" or "state_change")
             {
                 category = EventCategory.Trigger;
@@ -145,6 +183,75 @@ namespace SDHome.Lib.Mappers
             }
 
             return ("mqtt", topic);
+        }
+
+        /// <summary>
+        /// Parse button action strings to extract button source and action type.
+        /// Handles formats like:
+        /// - "single", "double", "hold", "release" (simple single-button devices)
+        /// - "button_1_single", "button_2_double" (multi-button devices)
+        /// - "1_single", "2_double" (numeric button prefix)
+        /// - "left_single", "right_double" (named button sources)
+        /// - "up_hold_release", "down_press_release" (dimmer remotes with compound actions)
+        /// </summary>
+        private static (string? ButtonSource, string ActionType) ParseButtonAction(string action)
+        {
+            // Single-word action types (no prefix)
+            var simpleActions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) 
+            { 
+                "single", "double", "triple", "quadruple", 
+                "hold", "release", "press", "long_press", "click"
+            };
+            
+            // Compound action types (two words joined by underscore)
+            var compoundActions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "hold_release", "press_release", "long_press",
+                "brightness_move_up", "brightness_move_down", "brightness_stop"
+            };
+            
+            var lowerAction = action.ToLowerInvariant();
+            
+            // Check if this is a simple action (no button prefix)
+            if (simpleActions.Contains(lowerAction))
+            {
+                return (null, lowerAction);
+            }
+            
+            // Check if the whole thing is a compound action
+            if (compoundActions.Contains(lowerAction))
+            {
+                return (null, lowerAction);
+            }
+            
+            // Try to split and find action type at the end
+            var parts = action.Split('_');
+            
+            if (parts.Length >= 2)
+            {
+                // FIRST: Check if last two parts form a compound action (e.g., "up_hold_release" -> "hold_release")
+                if (parts.Length >= 3)
+                {
+                    var lastTwoParts = $"{parts[^2]}_{parts[^1]}".ToLowerInvariant();
+                    if (compoundActions.Contains(lastTwoParts))
+                    {
+                        var buttonSource = string.Join("_", parts[..^2]).ToLowerInvariant();
+                        return (buttonSource, lastTwoParts);
+                    }
+                }
+                
+                // THEN: Check if just the last part is a simple action
+                var lastPart = parts[^1].ToLowerInvariant();
+                if (simpleActions.Contains(lastPart))
+                {
+                    // Everything before the action is the button source
+                    var buttonSource = string.Join("_", parts[..^1]).ToLowerInvariant();
+                    return (buttonSource, lastPart);
+                }
+            }
+            
+            // Fallback: return the whole action as the action type
+            return (null, lowerAction);
         }
     }
 

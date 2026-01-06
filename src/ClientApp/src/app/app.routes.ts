@@ -8,8 +8,12 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        redirectTo: 'dashboard',
+        redirectTo: 'home',
         pathMatch: 'full'
+      },
+      {
+        path: 'home',
+        loadComponent: () => import('./features/home/home.component').then(m => m.HomeComponent)
       },
       {
         path: 'dashboard',
@@ -48,6 +52,14 @@ export const routes: Routes = [
         loadComponent: () => import('./features/zones/zone-manager/zone-manager.component').then(m => m.ZoneManagerComponent)
       },
       {
+        path: 'zones/capabilities',
+        loadComponent: () => import('./features/zones/zone-capabilities-page/zone-capabilities-page.component').then(m => m.ZoneCapabilitiesPageComponent)
+      },
+      {
+        path: 'zones/:zoneId/capabilities',
+        loadComponent: () => import('./features/zones/zone-capabilities-page/zone-capabilities-page.component').then(m => m.ZoneCapabilitiesPageComponent)
+      },
+      {
         path: 'automations',
         loadComponent: () => import('./features/automations/automations.component').then(m => m.AutomationsComponent)
       },
@@ -58,6 +70,22 @@ export const routes: Routes = [
       {
         path: 'automations/:id',
         loadComponent: () => import('./features/automations/automation-editor/automation-editor.component').then(m => m.AutomationEditorComponent)
+      },
+      {
+        path: 'workflows/new',
+        loadComponent: () => import('./features/workflows/workflow-editor/workflow-editor.component').then(m => m.WorkflowEditorComponent)
+      },
+      {
+        path: 'workflows/:id',
+        loadComponent: () => import('./features/workflows/workflow-editor/workflow-editor.component').then(m => m.WorkflowEditorComponent)
+      },
+      {
+        path: 'settings',
+        loadComponent: () => import('./features/settings/capability-mappings/capability-mappings.component').then(m => m.CapabilityMappingsComponent)
+      },
+      {
+        path: 'settings/capability-mappings',
+        loadComponent: () => import('./features/settings/capability-mappings/capability-mappings.component').then(m => m.CapabilityMappingsComponent)
       }
     ]
   }

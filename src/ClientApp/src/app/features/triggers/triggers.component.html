@@ -31,7 +31,7 @@
         <div class="stat-icon">{{ getTypeIcon(entry.key) }}</div>
         <div class="stat-content">
           <span class="stat-value">{{ entry.value }}</span>
-          <span class="stat-label">{{ entry.key }}</span>
+          <span class="stat-label">{{ getTypeDisplayName(entry.key) }}</span>
         </div>
       </div>
     }
@@ -124,16 +124,24 @@
                 </td>
                 <td class="col-type">
                   <span class="tag" [ngClass]="'tag-' + getTriggerTypeClass(trigger.triggerType)">
-                    {{ getTypeIcon(trigger.triggerType) }} {{ trigger.triggerType || '-' }}
+                    {{ getTypeIcon(trigger.triggerType) }} {{ getTypeDisplayName(trigger.triggerType) }}
                   </span>
                 </td>
                 <td class="col-capability">
-                  {{ trigger.capability || '-' }}
+                  {{ getCapabilityDisplayName(trigger) }}
                 </td>
                 <td class="col-value">
                   @if (trigger.value !== undefined) {
-                    <span class="value-badge" [class.active]="trigger.value">
-                      {{ trigger.value ? 'Active' : 'Inactive' }}
+                    @let translated = translateValue(trigger);
+                    <span
+                      class="value-badge"
+                      [class.active]="translated.isActive"
+                      [style.--badge-color]="translated.color"
+                    >
+                      @if (translated.icon) {
+                        {{ translated.icon }}
+                      }
+                      {{ translated.friendlyName }}
                     </span>
                   } @else {
                     <span class="text-muted">-</span>

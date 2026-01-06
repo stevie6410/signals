@@ -1,0 +1,188 @@
+<div class="home-dashboard">
+  <!-- Header with summary stats -->
+  <header class="dashboard-header">
+    <div class="header-left">
+      <h1>🏠 Home Dashboard</h1>
+      <div class="connection-badge" [ngClass]="connectionState()">
+        <span class="pulse"></span>
+        {{ connectionState() === 'connected' ? 'Live' : 'Connecting...' }}
+      </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="summary-stats">
+      @if (avgTemperature()) {
+        <div class="stat-pill temperature">
+          <span class="stat-icon">🌡️</span>
+          <span class="stat-value">{{ avgTemperature() }}°</span>
+          <span class="stat-label">avg</span>
+        </div>
+      }
+      @if (avgHumidity()) {
+        <div class="stat-pill humidity">
+          <span class="stat-icon">💧</span>
+          <span class="stat-value">{{ avgHumidity() }}%</span>
+          <span class="stat-label">avg</span>
+        </div>
+      }
+      <div class="stat-pill zones">
+        <span class="stat-icon">🏢</span>
+        <span class="stat-value">{{ totalZones() }}</span>
+        <span class="stat-label">zones</span>
+      </div>
+      @if (occupiedZones() > 0) {
+        <div class="stat-pill occupied">
+          <span class="stat-icon">👤</span>
+          <span class="stat-value">{{ occupiedZones() }}</span>
+          <span class="stat-label">occupied</span>
+        </div>
+      }
+      @if (lightsOnCount() > 0) {
+        <div class="stat-pill lights">
+          <span class="stat-icon">💡</span>
+          <span class="stat-value">{{ lightsOnCount() }}</span>
+          <span class="stat-label">on</span>
+        </div>
+      }
+      @if (alertZones() > 0) {
+        <div class="stat-pill alerts">
+          <span class="stat-icon">⚠️</span>
+          <span class="stat-value">{{ alertZones() }}</span>
+          <span class="stat-label">alerts</span>
+        </div>
+      }
+    </div>
+  </header>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <span>Loading your home...</span>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error()) {
+    <div class="error-state">
+      <span class="error-icon">⚠️</span>
+      <span>{{ error() }}</span>
+      <button class="retry-btn" (click)="loadZones()">Retry</button>
+    </div>
+  }
+
+  <!-- Zones Grid -->
+  @if (!loading() && !error()) {
+    <div class="zones-container">
+      @for (data of zoneDisplayData(); track trackZone($index, data)) {
+        <div
+          class="zone-tile"
+          [class.occupied]="data.isOccupied"
+          [class.has-alerts]="data.hasAlerts"
+          [class.lights-on]="data.lightsOn"
+          [style.--zone-color]="data.zone.color || '#6366f1'"
+        >
+          <!-- Zone Header -->
+          <div class="zone-header">
+            <div class="zone-icon">{{ data.zone.icon || '🏠' }}</div>
+            <div class="zone-title">
+              <h3>{{ data.zone.name }}</h3>
+              @if (data.zone.parentZone) {
+                <span class="zone-parent">{{ data.zone.parentZone.name }}</span>
+              }
+            </div>
+            <!-- Status indicators -->
+            <div class="zone-status">
+              @if (data.isOccupied) {
+                <span class="status-badge occupied" title="Occupied">👤</span>
+              }
+              @if (data.lightsOn) {
+                <span class="status-badge lights" title="Lights On">💡</span>
+              }
+              @if (data.hasAlerts) {
+                <span class="status-badge alert" title="Alert">⚠️</span>
+              }
+            </div>
+          </div>
+
+          <!-- Primary Metrics (Temperature & Humidity) -->
+          <div class="primary-metrics">
+            @if (data.temperature) {
+              <div class="metric temperature" [ngClass]="getTemperatureColor(data.temperature.value)">
+                <span class="metric-value">{{ data.temperature.formatted }}<sup>°C</sup></span>
+                <span class="metric-label">Temperature</span>
+                <div class="metric-bar">
+                  <div class="bar-fill" [style.width.%]="((data.temperature.value - 10) / 25) * 100"></div>
+                </div>
+              </div>
+            }
+            @if (data.humidity) {
+              <div class="metric humidity" [ngClass]="getHumidityColor(data.humidity.value)">
+                <span class="metric-value">{{ data.humidity.formatted }}<sup>%</sup></span>
+                <span class="metric-label">Humidity</span>
+                <div class="metric-bar">
+                  <div class="bar-fill" [style.width.%]="data.humidity.value"></div>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Secondary Metrics -->
+          <div class="secondary-metrics">
+            @if (data.motion !== undefined) {
+              <div class="mini-metric" [class.active]="data.motion">
+                <span class="mini-icon">🏃</span>
+                <span class="mini-value">{{ data.motion ? 'Motion' : 'Clear' }}</span>
+              </div>
+            }
+            @if (data.presence !== undefined) {
+              <div class="mini-metric" [class.active]="data.presence">
+                <span class="mini-icon">👤</span>
+                <span class="mini-value">{{ data.presence ? 'Present' : 'Empty' }}</span>
+              </div>
+            }
+            @if (data.contact !== undefined) {
+              <div class="mini-metric" [class.alert]="!data.contact">
+                <span class="mini-icon">🚪</span>
+                <span class="mini-value">{{ data.contact ? 'Closed' : 'Open' }}</span>
+              </div>
+            }
+            @if (data.illuminance) {
+              <div class="mini-metric" [ngClass]="getLuxLevel(data.illuminance.value)">
+                <span class="mini-icon">☀️</span>
+                <span class="mini-value">{{ data.illuminance.formatted }} lx</span>
+              </div>
+            }
+            @if (data.co2) {
+              <div class="mini-metric" [ngClass]="getCo2Color(data.co2.value)">
+                <span class="mini-icon">🫁</span>
+                <span class="mini-value">{{ data.co2.formatted }} ppm</span>
+              </div>
+            }
+          </div>
+
+          <!-- No Data State -->
+          @if (data.capabilities.length === 0) {
+            <div class="no-data">
+              <span class="no-data-icon">📭</span>
+              <span class="no-data-text">No sensor data</span>
+              <a [routerLink]="['/zones', data.zone.id, 'capabilities']" class="setup-link">
+                Configure sensors
+              </a>
+            </div>
+          }
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <div class="empty-icon">🏠</div>
+          <h3>No zones configured</h3>
+          <p>Create zones and assign sensor capabilities to build your home dashboard</p>
+          <div class="empty-actions">
+            <a routerLink="/zones/manage" class="primary-btn">Create Zones</a>
+            <a routerLink="/zones/capabilities" class="secondary-btn">Assign Capabilities</a>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -73,9 +73,13 @@
               (cdkDragStarted)="onDragStarted(device)"
               (cdkDragEnded)="onDragEnded()"
             >
-              <span class="device-icon">{{ getDeviceIcon(device.deviceType) }}</span>
+              @if (device.imageUrl) {
+                <img [src]="device.imageUrl" [alt]="device.displayName || device.friendlyName" class="device-img" />
+              } @else {
+                <span class="device-icon">{{ getDeviceIcon(device.deviceType) }}</span>
+              }
               <div class="device-info">
-                <span class="device-name">{{ device.friendlyName }}</span>
+                <span class="device-name">{{ device.displayName || device.friendlyName }}</span>
                 <span class="device-meta">
                   @if (device.manufacturer) { {{ device.manufacturer }} }
                   @if (device.deviceType) { · {{ device.deviceType }} }
@@ -166,9 +170,13 @@
           (cdkDragStarted)="onDragStarted(device)"
           (cdkDragEnded)="onDragEnded()"
         >
-          <span class="device-icon">{{ getDeviceIcon(device.deviceType) }}</span>
+          @if (device.imageUrl) {
+            <img [src]="device.imageUrl" [alt]="device.displayName || device.friendlyName" class="device-img" />
+          } @else {
+            <span class="device-icon">{{ getDeviceIcon(device.deviceType) }}</span>
+          }
           <div class="device-info">
-            <span class="device-name">{{ device.friendlyName }}</span>
+            <span class="device-name">{{ device.displayName || device.friendlyName }}</span>
           </div>
           <span class="drag-handle">⋮⋮</span>
           <div class="device-placeholder" *cdkDragPlaceholder></div>
@@ -207,6 +215,13 @@
         {{ zone.icon || '🏠' }}
       </span>
       <span class="zone-name">{{ zone.name }}</span>
+      <button
+        class="cap-btn"
+        (click)="openCapabilityEditor(zone.id); $event.stopPropagation()"
+        title="Edit zone capabilities"
+      >
+        ⚙️
+      </button>
       <span class="zone-badge">{{ getDevicesInZone(zone.id).length }}</span>
     </div>
 
@@ -230,8 +245,12 @@
             (cdkDragStarted)="onDragStarted(device)"
             (cdkDragEnded)="onDragEnded()"
           >
-            <span class="chip-icon">{{ getDeviceIcon(device.deviceType) }}</span>
-            <span class="chip-name">{{ device.friendlyName }}</span>
+            @if (device.imageUrl) {
+              <img [src]="device.imageUrl" [alt]="device.displayName || device.friendlyName" class="chip-img" />
+            } @else {
+              <span class="chip-icon">{{ getDeviceIcon(device.deviceType) }}</span>
+            }
+            <span class="chip-name">{{ device.displayName || device.friendlyName }}</span>
             <div class="device-placeholder" *cdkDragPlaceholder></div>
           </div>
         }

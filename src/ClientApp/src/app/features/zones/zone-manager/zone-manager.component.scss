@@ -211,9 +211,25 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 
+  .device-img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    flex-shrink: 0;
+  }
+
   .device-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 1.25rem;
     flex-shrink: 0;
+    background: var(--surface-1);
+    border-radius: var(--radius-sm);
   }
 
   .device-info {
@@ -247,7 +263,14 @@
     padding: var(--spacing-xs) var(--spacing-sm);
     margin-bottom: var(--spacing-xs);
 
+    .device-img {
+      width: 32px;
+      height: 32px;
+    }
+
     .device-icon {
+      width: 32px;
+      height: 32px;
       font-size: 1rem;
     }
 
@@ -495,6 +518,27 @@
     color: var(--text-primary);
   }
 
+  .cap-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.9rem;
+    opacity: 0.6;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      opacity: 1;
+      border-color: var(--accent-cyan);
+      background: rgba(0, 245, 255, 0.1);
+    }
+  }
+
   .zone-badge {
     background: var(--surface-3);
     color: var(--text-muted);
@@ -542,7 +586,7 @@
   border-radius: 20px;
   cursor: grab;
   transition: all var(--transition-fast);
-  max-width: 180px;
+  max-width: 200px;
 
   &:hover {
     border-color: var(--accent-cyan);
@@ -553,9 +597,25 @@
     cursor: grabbing;
   }
 
+  .chip-img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    border-radius: 4px;
+    background: var(--surface-1);
+    flex-shrink: 0;
+  }
+
   .chip-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 0.9rem;
     flex-shrink: 0;
+    background: var(--surface-1);
+    border-radius: 4px;
   }
 
   .chip-name {
@@ -626,7 +686,7 @@
 
         .device-chip {
           padding: 2px var(--spacing-xs);
-          max-width: 140px;
+          // max-width: 140px;
 
           .chip-icon {
             font-size: 0.8rem;

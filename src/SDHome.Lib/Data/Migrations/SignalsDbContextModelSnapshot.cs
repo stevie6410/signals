@@ -363,6 +363,80 @@ namespace SDHome.Lib.Data.Migrations
                     b.ToTable("automation_triggers", (string)null);
                 });
 
+            modelBuilder.Entity("SDHome.Lib.Data.Entities.CapabilityMappingEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Capability")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("capability");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DeviceType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("device_type");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("display_name");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("icon");
+
+                    b.Property<bool>("IsSystemDefault")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_system_default");
+
+                    b.Property<string>("Property")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("property");
+
+                    b.Property<string>("StateMappings")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("state_mappings");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("unit");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Capability")
+                        .HasDatabaseName("idx_capability_mappings_capability");
+
+                    b.HasIndex("Capability", "DeviceType")
+                        .HasDatabaseName("idx_capability_mappings_cap_device");
+
+                    b.ToTable("capability_mappings", (string)null);
+                });
+
             modelBuilder.Entity("SDHome.Lib.Data.Entities.DeviceEntity", b =>
                 {
                     b.Property<string>("DeviceId")
@@ -703,6 +777,71 @@ namespace SDHome.Lib.Data.Migrations
                     b.ToTable("trigger_events", (string)null);
                 });
 
+            modelBuilder.Entity("SDHome.Lib.Data.Entities.ZoneCapabilityAssignmentEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Capability")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("capability");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("device_id");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("display_name");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int")
+                        .HasColumnName("priority");
+
+                    b.Property<string>("Property")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("property");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("ZoneId")
+                        .HasColumnType("int")
+                        .HasColumnName("zone_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Capability")
+                        .HasDatabaseName("idx_zone_capability_assignments_capability");
+
+                    b.HasIndex("DeviceId")
+                        .HasDatabaseName("idx_zone_capability_assignments_device_id");
+
+                    b.HasIndex("ZoneId")
+                        .HasDatabaseName("idx_zone_capability_assignments_zone_id");
+
+                    b.HasIndex("ZoneId", "Capability", "Priority")
+                        .IsUnique()
+                        .HasDatabaseName("idx_zone_capability_assignments_unique");
+
+                    b.ToTable("zone_capability_assignments", (string)null);
+                });
+
             modelBuilder.Entity("SDHome.Lib.Data.Entities.ZoneEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -814,6 +953,25 @@ namespace SDHome.Lib.Data.Migrations
                     b.Navigation("Zone");
                 });
 
+            modelBuilder.Entity("SDHome.Lib.Data.Entities.ZoneCapabilityAssignmentEntity", b =>
+                {
+                    b.HasOne("SDHome.Lib.Data.Entities.DeviceEntity", "Device")
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SDHome.Lib.Data.Entities.ZoneEntity", "Zone")
+                        .WithMany("CapabilityAssignments")
+                        .HasForeignKey("ZoneId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Device");
+
+                    b.Navigation("Zone");
+                });
+
             modelBuilder.Entity("SDHome.Lib.Data.Entities.ZoneEntity", b =>
                 {
                     b.HasOne("SDHome.Lib.Data.Entities.ZoneEntity", "ParentZone")
@@ -837,6 +995,8 @@ namespace SDHome.Lib.Data.Migrations
 
             modelBuilder.Entity("SDHome.Lib.Data.Entities.ZoneEntity", b =>
                 {
+                    b.Navigation("CapabilityAssignments");
+
                     b.Navigation("ChildZones");
 
                     b.Navigation("Devices");

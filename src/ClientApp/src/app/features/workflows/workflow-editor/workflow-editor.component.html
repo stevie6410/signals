@@ -1,0 +1,268 @@
+<div class="workflow-editor">
+  <!-- Header -->
+  <div class="editor-header">
+    <div class="header-left">
+      <button class="back-btn" (click)="closeEditor()">← Back</button>
+      <input
+        type="text"
+        class="workflow-name-input"
+        [ngModel]="workflowName()"
+        (ngModelChange)="workflowName.set($event)"
+        placeholder="Automation Name"
+      />
+    </div>
+    <div class="header-actions">
+      <div class="zoom-controls">
+        <button class="zoom-btn" (click)="zoomOut()" title="Zoom Out">−</button>
+        <button class="zoom-btn" (click)="zoomReset()" title="Reset Zoom">⊙</button>
+        <button class="zoom-btn" (click)="zoomIn()" title="Zoom In">+</button>
+      </div>
+      <button class="clear-btn" (click)="clearCanvas()">🗑️ Clear</button>
+      <button class="save-btn" (click)="saveWorkflow()" [disabled]="saving()">
+        @if (saving()) {
+          ⏳ Saving...
+        } @else {
+          💾 Save Automation
+        }
+      </button>
+    </div>
+  </div>
+
+  <div class="editor-body">
+    <!-- Node Palette -->
+    <div class="node-palette">
+      <h3>Nodes</h3>
+
+      <div class="palette-section">
+        <h4>⚡ Triggers</h4>
+        <p class="section-hint">Start your automation</p>
+        @for (node of triggerNodes(); track node.id) {
+          <div
+            class="palette-node"
+            [style.--node-color]="node.color"
+            draggable="true"
+            (dragstart)="$event.dataTransfer?.setData('nodeType', node.id)"
+            (click)="addNode(node.id)"
+          >
+            <span class="node-icon">{{ node.icon }}</span>
+            <span class="node-label">{{ node.label }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="palette-section">
+        <h4>❓ Conditions</h4>
+        <p class="section-hint">Check before executing</p>
+        @for (node of conditionNodes(); track node.id) {
+          <div
+            class="palette-node"
+            [style.--node-color]="node.color"
+            draggable="true"
+            (dragstart)="$event.dataTransfer?.setData('nodeType', node.id)"
+            (click)="addNode(node.id)"
+          >
+            <span class="node-icon">{{ node.icon }}</span>
+            <span class="node-label">{{ node.label }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="palette-section">
+        <h4>🎯 Actions</h4>
+        <p class="section-hint">What happens</p>
+        @for (node of actionNodes(); track node.id) {
+          <div
+            class="palette-node"
+            [style.--node-color]="node.color"
+            draggable="true"
+            (dragstart)="$event.dataTransfer?.setData('nodeType', node.id)"
+            (click)="addNode(node.id)"
+          >
+            <span class="node-icon">{{ node.icon }}</span>
+            <span class="node-label">{{ node.label }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-wrapper">
+      <div #drawflowContainer class="drawflow-container" id="drawflow"></div>
+
+      @if (loading()) {
+        <div class="loading-overlay">
+          <div class="spinner"></div>
+          <span>Loading...</span>
+        </div>
+      }
+    </div>
+
+    <!-- Properties Panel -->
+    <div class="properties-panel" [class.has-selection]="selectedNodeData()">
+      @if (selectedNodeData(); as nodeData) {
+        <div class="panel-header">
+          <h3>Node Properties</h3>
+          <button class="delete-btn" (click)="deleteSelectedNode()" title="Delete Node">
+            🗑️
+          </button>
+        </div>
+
+        <div class="panel-content">
+          <div class="property-group">
+            <label>Node Type</label>
+            <span class="node-type-badge">{{ nodeData.label }}</span>
+          </div>
+
+          <!-- Zone-based node configuration -->
+          @if (nodeData.nodeType.includes('zone')) {
+            <div class="property-group">
+              <label>Zone</label>
+              <select
+                [ngModel]="nodeData.config['zoneId']"
+                (ngModelChange)="onZoneSelected($event)"
+              >
+                <option value="">Select Zone...</option>
+                @for (zone of getFlatZones(); track zone.id) {
+                  <option [value]="zone.id">{{ zone.icon }} {{ zone.name }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="property-group">
+              <label>Capability</label>
+              <select
+                [ngModel]="nodeData.config['capability']"
+                (ngModelChange)="updateNodeConfig('capability', $event)"
+              >
+                <option value="">Select Capability...</option>
+                @for (cap of capabilityTypes(); track cap.id) {
+                  <option [value]="cap.id">{{ cap.icon }} {{ cap.label }}</option>
+                }
+              </select>
+            </div>
+          }
+
+          <!-- Device-based node configuration -->
+          @if (nodeData.nodeType.includes('device')) {
+            <div class="property-group">
+              <label>Device</label>
+              <select
+                [ngModel]="nodeData.config['deviceId']"
+                (ngModelChange)="onDeviceSelected($event)"
+              >
+                <option value="">Select Device...</option>
+                @for (device of devices(); track device.deviceId) {
+                  <option [value]="device.deviceId">{{ device.effectiveDisplayName || device.friendlyName }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="property-group">
+              <label>Property</label>
+              <input
+                type="text"
+                [ngModel]="nodeData.config['property']"
+                (ngModelChange)="updateNodeConfig('property', $event)"
+                placeholder="e.g., state, brightness"
+              />
+            </div>
+          }
+
+          <!-- Trigger/Condition operator and value -->
+          @if (nodeData.nodeType.includes('trigger') || nodeData.nodeType.includes('condition')) {
+            <div class="property-group">
+              <label>Operator</label>
+              <select
+                [ngModel]="nodeData.config['operator']"
+                (ngModelChange)="updateNodeConfig('operator', $event)"
+              >
+                @for (op of operators; track op.id) {
+                  <option [value]="op.id">{{ op.label }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="property-group">
+              <label>Value</label>
+              <input
+                type="text"
+                [ngModel]="nodeData.config['value']"
+                (ngModelChange)="updateNodeConfig('value', $event)"
+                placeholder="true, false, ON, 50, etc."
+              />
+            </div>
+          }
+
+          <!-- Action value -->
+          @if (nodeData.nodeType.includes('action') && !nodeData.nodeType.includes('delay') && !nodeData.nodeType.includes('webhook')) {
+            <div class="property-group">
+              <label>Set Value</label>
+              <input
+                type="text"
+                [ngModel]="nodeData.config['value']"
+                (ngModelChange)="updateNodeConfig('value', $event)"
+                placeholder="ON, OFF, 100, etc."
+              />
+            </div>
+          }
+
+          <!-- Delay configuration -->
+          @if (nodeData.nodeType === 'delay-action') {
+            <div class="property-group">
+              <label>Delay (seconds)</label>
+              <input
+                type="number"
+                [ngModel]="nodeData.config['delay']"
+                (ngModelChange)="updateNodeConfig('delay', $event)"
+                placeholder="10"
+                min="0"
+              />
+            </div>
+          }
+
+          <!-- Time trigger configuration -->
+          @if (nodeData.nodeType === 'time-trigger') {
+            <div class="property-group">
+              <label>Time Expression</label>
+              <input
+                type="text"
+                [ngModel]="nodeData.config['timeExpression']"
+                (ngModelChange)="updateNodeConfig('timeExpression', $event)"
+                placeholder="08:00 or cron: 0 8 * * *"
+              />
+            </div>
+          }
+
+          <!-- Webhook configuration -->
+          @if (nodeData.nodeType === 'webhook-action') {
+            <div class="property-group">
+              <label>Webhook URL</label>
+              <input
+                type="text"
+                [ngModel]="nodeData.config['webhookUrl']"
+                (ngModelChange)="updateNodeConfig('webhookUrl', $event)"
+                placeholder="https://..."
+              />
+            </div>
+            <div class="property-group">
+              <label>Method</label>
+              <select
+                [ngModel]="nodeData.config['webhookMethod'] || 'POST'"
+                (ngModelChange)="updateNodeConfig('webhookMethod', $event)"
+              >
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+              </select>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-panel">
+          <p>👆 Select a node to edit its properties</p>
+          <p class="hint">Or drag nodes from the palette to the canvas</p>
+        </div>
+      }
+    </div>
+  </div>
+</div>

@@ -1,0 +1,141 @@
+<div class="capability-editor-overlay" (click)="closeEditor()">
+  <div class="capability-editor" (click)="$event.stopPropagation()">
+    <div class="editor-header">
+      <div class="header-title">
+        @if (zone()) {
+          <span class="zone-icon" [style.background]="zone()!.color || 'var(--surface-3)'">
+            {{ zone()!.icon || '🏠' }}
+          </span>
+          <h2>{{ zone()!.name }} - Capabilities</h2>
+        }
+      </div>
+      <button class="close-btn" (click)="closeEditor()">✕</button>
+    </div>
+
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <span>Loading...</span>
+      </div>
+    } @else {
+      <div class="editor-content">
+        <p class="editor-subtitle">
+          Assign primary devices for each capability. This lets you create automations using
+          <code>zone.{{ zone()?.name?.toLowerCase()?.replace(' ', '_') }}.motion</code> instead of device IDs.
+        </p>
+
+        <div class="editor-layout">
+          <!-- Capabilities Grid -->
+          <div class="capabilities-section">
+            <h3>Zone Capabilities</h3>
+            <div class="capabilities-grid">
+              @for (cap of capabilityTypes(); track cap.id) {
+                <div
+                  class="capability-slot"
+                  [class.has-device]="getAssignedDevice(cap.id)"
+                  [class.selected]="selectedCapability() === cap.id"
+                  [class.drop-target]="draggingDevice() && selectedCapability() === cap.id"
+                  cdkDropList
+                  [id]="'cap-' + cap.id"
+                  [cdkDropListData]="[]"
+                  (cdkDropListDropped)="onDeviceDroppedOnCapability($event, cap.id)"
+                  (click)="selectCapability(cap.id)"
+                >
+                  <div class="capability-header">
+                    <span class="cap-icon">{{ cap.icon }}</span>
+                    <span class="cap-label">{{ cap.label }}</span>
+                  </div>
+
+                  @if (getAssignedDevice(cap.id); as device) {
+                    <div class="assigned-device">
+                      <span class="device-icon">{{ getDeviceIcon(device.deviceType) }}</span>
+                      <span class="device-name">{{ device.effectiveDisplayName || device.friendlyName }}</span>
+                      <button
+                        class="remove-btn"
+                        (click)="removeAssignment(cap.id); $event.stopPropagation()"
+                        title="Remove assignment"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  } @else {
+                    <div class="empty-slot">
+                      <span class="placeholder">Drop device here</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Devices Panel -->
+          <div class="devices-section">
+            <h3>Available Devices</h3>
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input
+                type="text"
+                placeholder="Search devices..."
+                [ngModel]="deviceSearch()"
+                (ngModelChange)="deviceSearch.set($event)"
+              />
+              @if (deviceSearch()) {
+                <button class="clear-btn" (click)="deviceSearch.set('')">✕</button>
+              }
+            </div>
+
+            <div class="device-list" cdkDropListGroup>
+              @for (device of availableDevices(); track device.deviceId) {
+                <div
+                  class="device-card"
+                  [class.assigned]="isDeviceAssigned(device.deviceId)"
+                  cdkDrag
+                  [cdkDragData]="device"
+                  [cdkDragPreviewClass]="'drag-preview-elevated'"
+                  (cdkDragStarted)="onDragStarted(device)"
+                  (cdkDragEnded)="onDragEnded()"
+                >
+                  <span class="device-icon">{{ getDeviceIcon(device.deviceType) }}</span>
+                  <div class="device-info">
+                    <span class="device-name">{{ device.effectiveDisplayName || device.friendlyName }}</span>
+                    @if (isDeviceAssigned(device.deviceId)) {
+                      <span class="assigned-caps">
+                        {{ getDeviceCapabilities(device.deviceId).join(', ') }}
+                      </span>
+                    }
+                  </div>
+                  <span class="drag-handle">⋮⋮</span>
+
+                  <!-- Custom drag preview -->
+                  <div class="drag-preview" *cdkDragPreview>
+                    <span class="device-icon">{{ getDeviceIcon(device.deviceType) }}</span>
+                    <span class="device-name">{{ device.effectiveDisplayName || device.friendlyName }}</span>
+                  </div>
+
+                  <div class="device-placeholder" *cdkDragPlaceholder></div>
+                </div>
+              }
+
+              @if (availableDevices().length === 0) {
+                <div class="empty-state">
+                  @if (deviceSearch()) {
+                    <span>No devices match "{{ deviceSearch() }}"</span>
+                  } @else {
+                    <span>No devices available</span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (saving()) {
+      <div class="saving-indicator">
+        <div class="spinner-sm"></div>
+        <span>Saving...</span>
+      </div>
+    }
+  </div>
+</div>

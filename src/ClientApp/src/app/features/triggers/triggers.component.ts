@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TriggersApiService, TriggerEvent } from '../../api/sdhome-client';
 import { SignalRService } from '../../core/services/signalr.service';
+import { CapabilityMappingService, TranslatedState } from '../../core/services/capability-mapping.service';
 
 interface FilterOption {
   label: string;
@@ -19,6 +20,7 @@ interface FilterOption {
 export class TriggersComponent implements OnInit {
   private triggersService = inject(TriggersApiService);
   private signalrService = inject(SignalRService);
+  private capabilityMapping = inject(CapabilityMappingService);
 
   // State
   triggers = signal<TriggerEvent[]>([]);
@@ -93,6 +95,7 @@ export class TriggersComponent implements OnInit {
   });
 
   ngOnInit() {
+    this.capabilityMapping.ensureLoaded();
     this.loadTriggers();
   }
 
@@ -150,12 +153,112 @@ export class TriggersComponent implements OnInit {
 
   getTypeIcon(type: string | undefined): string {
     if (!type) return '🔔';
-    const t = type.toLowerCase();
-    if (t.includes('motion') || t.includes('occupancy')) return '👁️';
-    if (t.includes('contact') || t.includes('door') || t.includes('window')) return '🚪';
-    if (t.includes('button') || t.includes('action') || t.includes('click')) return '🔘';
-    if (t.includes('vibration') || t.includes('tilt')) return '📳';
-    return '🔔';
+    // Use capability mapping if available
+    const display = this.capabilityMapping.getCapabilityDisplay(type);
+    return display.icon;
+  }
+
+  getTypeDisplayName(type: string | undefined): string {
+    if (!type) return '-';
+    const display = this.capabilityMapping.getCapabilityDisplay(type);
+    return display.displayName;
+  }
+
+  /**
+   * Translate a trigger value using capability mappings.
+   * For button triggers, shows the action type (single, double, hold, etc.)
+   */
+  translateValue(trigger: TriggerEvent): TranslatedState {
+    // For button triggers, display the action type from triggerSubType
+    if (trigger.triggerType === 'button' && trigger.triggerSubType) {
+      return this.formatButtonAction(trigger.triggerSubType);
+    }
+
+    const capability = trigger.capability || trigger.triggerType || '';
+    return this.capabilityMapping.translate(capability, trigger.value);
+  }
+
+  /**
+   * Format button action for display (e.g., "single" -> "Single Press")
+   */
+  private formatButtonAction(action: string): TranslatedState {
+    const actionMap: Record<string, { label: string; color: string; icon: string }> = {
+      // Basic press types
+      'single': { label: 'Single Press', color: '#10b981', icon: '👆' },
+      'double': { label: 'Double Press', color: '#3b82f6', icon: '✌️' },
+      'triple': { label: 'Triple Press', color: '#f59e0b', icon: '🤟' },
+      'quadruple': { label: 'Quadruple Press', color: '#ec4899', icon: '🖐️' },
+      'press': { label: 'Press', color: '#10b981', icon: '👆' },
+      'long_press': { label: 'Long Press', color: '#f59e0b', icon: '✊' },
+
+      // Hold actions
+      'hold': { label: 'Hold', color: '#f59e0b', icon: '✊' },
+      'release': { label: 'Release', color: '#6b7280', icon: '🖐️' },
+      'hold_release': { label: 'Hold Release', color: '#6b7280', icon: '🖐️' },
+
+      // Dimmer-style compound actions (button_action_modifier)
+      'press_release': { label: 'Press Release', color: '#6b7280', icon: '👆' },
+
+      // Brightness/dimmer actions
+      'brightness_move_up': { label: 'Brightness Up', color: '#10b981', icon: '🔆' },
+      'brightness_move_down': { label: 'Brightness Down', color: '#3b82f6', icon: '🔅' },
+      'brightness_stop': { label: 'Brightness Stop', color: '#6b7280', icon: '⏹️' },
+    };
+
+    const lowerAction = action.toLowerCase();
+    const mapped = actionMap[lowerAction];
+    if (mapped) {
+      return {
+        rawValue: action,
+        friendlyName: mapped.label,
+        color: mapped.color,
+        icon: mapped.icon,
+        isActive: true
+      };
+    }
+
+    // Fallback: format the action nicely
+    // Convert underscores to spaces and title case
+    const label = action
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase());
+
+    return { rawValue: action, friendlyName: label, isActive: true };
+  }
+
+  /**
+   * Get display name for capability, handling multi-button sources
+   */
+  getCapabilityDisplayName(trigger: TriggerEvent): string {
+    const capability = trigger.capability || '';
+
+    // Check if this is a multi-button capability (e.g., "button_1", "button_2")
+    const buttonMatch = capability.match(/^button[_\s]?(\d+)$/i);
+    if (buttonMatch) {
+      return `Button ${buttonMatch[1]}`;
+    }
+
+    // Check for named button sources from dimmer remotes (e.g., "up", "down", "on", "off")
+    const namedButtons: Record<string, string> = {
+      'up': 'Up Button',
+      'down': 'Down Button',
+      'on': 'On Button',
+      'off': 'Off Button',
+      'left': 'Left Button',
+      'right': 'Right Button',
+      'top': 'Top Button',
+      'bottom': 'Bottom Button',
+      'middle': 'Middle Button',
+      'center': 'Center Button',
+    };
+
+    const lowerCap = capability.toLowerCase();
+    if (namedButtons[lowerCap]) {
+      return namedButtons[lowerCap];
+    }
+
+    const display = this.capabilityMapping.getCapabilityDisplay(capability);
+    return display.displayName;
   }
 
   trackTrigger(index: number, trigger: TriggerEvent): string {

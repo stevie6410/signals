@@ -1,8 +1,11 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject, debounceTime } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReadingsApiService, SensorReading } from '../../api/sdhome-client';
 import { SignalRService } from '../../core/services/signalr.service';
+import { CapabilityMappingService } from '../../core/services/capability-mapping.service';
 
 interface FilterOption {
   label: string;
@@ -12,8 +15,16 @@ interface FilterOption {
 interface MetricSummary {
   metric: string;
   latest: number;
+  previousValue: number | null;
   unit: string;
   icon: string;
+  trend: 'up' | 'down' | 'stable';
+  lastUpdated: Date;
+}
+
+interface MetricData {
+  reading: SensorReading;
+  previousValue: number | null;
   trend: 'up' | 'down' | 'stable';
 }
 
@@ -24,9 +35,14 @@ interface MetricSummary {
   templateUrl: './readings.component.html',
   styleUrl: './readings.component.scss'
 })
-export class ReadingsComponent implements OnInit {
+export class ReadingsComponent implements OnInit, OnDestroy {
   private readingsService = inject(ReadingsApiService);
   private signalrService = inject(SignalRService);
+  private capabilityMapping = inject(CapabilityMappingService);
+
+  // Debounce configuration
+  private readonly DEBOUNCE_MS = 300;
+  private metricUpdateSubject = new Subject<Map<string, MetricData>>();
 
   // State
   readings = signal<SensorReading[]>([]);
@@ -82,30 +98,99 @@ export class ReadingsComponent implements OnInit {
     ];
   });
 
-  // Metric summaries (latest values)
-  metricSummaries = computed<MetricSummary[]>(() => {
+  // Track previous values for trend detection (plain object, not a signal)
+  private previousValues = new Map<string, number>();
+
+  // Known metrics in stable order (plain array, updated via effect)
+  private knownMetricsList: string[] = [];
+
+  // Processed metric data with trends (signal updated by effect)
+  private metricDataMap = signal<Map<string, MetricData>>(new Map());
+
+  // Raw latest readings by metric (pure computed, no side effects)
+  private latestByMetric = computed(() => {
     const data = this.allReadings();
-    const latestByMetric = new Map<string, SensorReading>();
+    const latest = new Map<string, SensorReading>();
 
     data.forEach(r => {
       if (!r.metric) return;
-      const existing = latestByMetric.get(r.metric);
+      const existing = latest.get(r.metric);
       if (!existing || new Date(r.timestampUtc!) > new Date(existing.timestampUtc!)) {
-        latestByMetric.set(r.metric, r);
+        latest.set(r.metric, r);
       }
     });
 
-    return Array.from(latestByMetric.entries()).map(([metric, reading]) => ({
-      metric,
-      latest: reading.value ?? 0,
-      unit: reading.unit ?? '',
-      icon: this.getMetricIcon(metric),
-      trend: 'stable' as const
-    }));
+    return latest;
+  });
+
+  // Effect to update metric data and track trends (side effects allowed here)
+  private updateMetricDataEffect = effect(() => {
+    const latestByMetric = this.latestByMetric();
+    const newMetricData = new Map<string, MetricData>();
+
+    // Update known metrics list (preserve order, add new ones)
+    const currentMetrics = Array.from(latestByMetric.keys());
+    const newMetrics = currentMetrics.filter(m => !this.knownMetricsList.includes(m));
+    if (newMetrics.length > 0) {
+      this.knownMetricsList = [...this.knownMetricsList, ...newMetrics];
+    }
+
+    // Build metric data with trends
+    for (const [metric, reading] of latestByMetric) {
+      const currentValue = reading.value ?? 0;
+      const previousValue = this.previousValues.get(metric) ?? null;
+
+      // Determine trend
+      let trend: 'up' | 'down' | 'stable' = 'stable';
+      if (previousValue !== null && previousValue !== currentValue) {
+        trend = currentValue > previousValue ? 'up' : 'down';
+      }
+
+      // Update previous value for next comparison
+      this.previousValues.set(metric, currentValue);
+
+      newMetricData.set(metric, { reading, previousValue, trend });
+    }
+
+    // Push to debounce subject instead of directly updating
+    this.metricUpdateSubject.next(newMetricData);
+  });
+
+  // Subscribe to debounced updates
+  private metricUpdateSubscription = this.metricUpdateSubject.pipe(
+    debounceTime(this.DEBOUNCE_MS)
+  ).subscribe(data => this.metricDataMap.set(data));
+
+  // Metric summaries (pure computed, reads from metricDataMap)
+  metricSummaries = computed<MetricSummary[]>(() => {
+    const metricData = this.metricDataMap();
+
+    return this.knownMetricsList
+      .filter(metric => metricData.has(metric))
+      .map(metric => {
+        const data = metricData.get(metric)!;
+        const reading = data.reading;
+
+        return {
+          metric,
+          latest: reading.value ?? 0,
+          previousValue: data.previousValue,
+          unit: reading.unit ?? '',
+          icon: this.getMetricIcon(metric),
+          trend: data.trend,
+          lastUpdated: new Date(reading.timestampUtc!)
+        };
+      });
   });
 
   ngOnInit() {
+    this.capabilityMapping.ensureLoaded();
     this.loadReadings();
+  }
+
+  ngOnDestroy() {
+    this.metricUpdateSubject.complete();
+    this.metricUpdateSubscription.unsubscribe();
   }
 
   loadReadings() {
@@ -143,15 +228,19 @@ export class ReadingsComponent implements OnInit {
   }
 
   getMetricIcon(metric: string): string {
-    const m = metric.toLowerCase();
-    if (m.includes('temp')) return '🌡️';
-    if (m.includes('humid')) return '💧';
-    if (m.includes('pressure')) return '📊';
-    if (m.includes('battery')) return '🔋';
-    if (m.includes('lux') || m.includes('light') || m.includes('illuminance')) return '💡';
-    if (m.includes('power') || m.includes('energy')) return '⚡';
-    if (m.includes('voltage')) return '📈';
-    return '📉';
+    // Use capability mapping if available
+    const display = this.capabilityMapping.getCapabilityDisplay(metric);
+    return display.icon;
+  }
+
+  getMetricDisplayName(metric: string): string {
+    const display = this.capabilityMapping.getCapabilityDisplay(metric);
+    return display.displayName;
+  }
+
+  getMetricUnit(metric: string): string | undefined {
+    const display = this.capabilityMapping.getCapabilityDisplay(metric);
+    return display.unit;
   }
 
   formatValue(value: number | undefined, unit: string | undefined): string {

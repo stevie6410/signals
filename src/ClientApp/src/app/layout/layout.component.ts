@@ -26,13 +26,15 @@ export class LayoutComponent implements OnInit {
   currentRoute = signal('');
 
   navItems: NavItem[] = [
-    { label: 'Dashboard', icon: '🏠', route: '/dashboard' },
+    { label: 'Home', icon: '🏠', route: '/home' },
     { label: 'Live Monitor', icon: '⚡', route: '/signals', badge: () => this.signalR.signalCount() },
     { label: 'Readings', icon: '📊', route: '/readings' },
     { label: 'Triggers', icon: '🔔', route: '/triggers' },
     { label: 'Devices', icon: '📡', route: '/devices' },
     { label: 'Zones', icon: '🏢', route: '/zones' },
     { label: 'Automations', icon: '🤖', route: '/automations' },
+    { label: 'Analytics', icon: '📈', route: '/dashboard' },
+    { label: 'Settings', icon: '⚙️', route: '/settings' },
   ];
 
   // Computed connection status

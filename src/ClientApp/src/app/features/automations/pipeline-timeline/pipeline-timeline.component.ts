@@ -17,22 +17,22 @@ type FilterMode = 'all' | 'automations' | 'e2e';
         </div>
         <div class="pipeline-controls">
           <div class="filter-tabs">
-            <button 
-              class="filter-tab" 
+            <button
+              class="filter-tab"
               [class.active]="filterMode() === 'all'"
               (click)="filterMode.set('all')"
               title="Show all events">
               All
             </button>
-            <button 
-              class="filter-tab" 
+            <button
+              class="filter-tab"
               [class.active]="filterMode() === 'automations'"
               (click)="filterMode.set('automations')"
               title="Show only events with automations">
               Auto
             </button>
-            <button 
-              class="filter-tab" 
+            <button
+              class="filter-tab"
               [class.active]="filterMode() === 'e2e'"
               (click)="filterMode.set('e2e')"
               title="Show E2E automation cycles only">
@@ -59,8 +59,8 @@ type FilterMode = 'all' | 'automations' | 'e2e';
           </div>
         } @else {
           @for (timeline of filteredTimelines(); track timeline.id) {
-            <div class="timeline-entry" 
-                 [class.slow]="timeline.totalMs > 200" 
+            <div class="timeline-entry"
+                 [class.slow]="timeline.totalMs > 200"
                  [class.very-slow]="timeline.totalMs > 500"
                  [class.e2e-timeline]="isE2ETimeline(timeline)">
               <div class="timeline-header">
@@ -456,7 +456,7 @@ export class PipelineTimelineComponent implements OnInit, OnDestroy {
 
   timelines = this.signalR.pipelineTimelines;
   isConnected = this.signalR.isConnected;
-  
+
   // Filter mode: all, automations (has automation name or fired automation), e2e (ZigbeeRoundTrip stage)
   filterMode = signal<FilterMode>('all');
 
@@ -464,12 +464,12 @@ export class PipelineTimelineComponent implements OnInit, OnDestroy {
   filteredTimelines = computed(() => {
     const mode = this.filterMode();
     const all = this.timelines();
-    
+
     switch (mode) {
       case 'automations':
         // Show events that have an automation name OR have significant automation time (>10ms)
-        return all.filter(t => 
-          t.automationName || 
+        return all.filter(t =>
+          t.automationName ||
           t.stages.some(s => s.name === 'Automation' && s.durationMs > 10) ||
           this.isE2ETimeline(t)
         );

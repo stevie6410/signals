@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using SDHome.Lib.Data;
 using SDHome.Lib.Data.Entities;
@@ -10,462 +11,393 @@ public class SignalEventProjectionService(
     IRealtimeEventBroadcaster broadcaster,
     IAutomationEngine automationEngine) : ISignalEventProjectionService
 {
+    /// <summary>
+    /// Known sensor metrics and their units. Each metric in a payload becomes a separate SensorReading.
+    /// </summary>
+    private static readonly Dictionary<string, string?> KnownSensorMetrics = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Environmental sensors
+        ["temperature"] = "°C",
+        ["device_temperature"] = "°C",
+        ["humidity"] = "%",
+        ["pressure"] = "hPa",
+        ["co2"] = "ppm",
+        ["voc"] = "ppb",
+        ["pm25"] = "µg/m³",
+        ["pm10"] = "µg/m³",
+        ["formaldehyd"] = "mg/m³",
+        
+        // Light sensors
+        ["illuminance"] = "lx",
+        ["illuminance_lux"] = "lx",
+        
+        // Presence/Motion sensors (boolean values stored as 0/1)
+        ["occupancy"] = null,           // Presence detection (mmWave/radar)
+        ["motion"] = null,              // PIR motion detection
+        ["presence"] = null,            // Alternative presence property
+        
+        // Power/Energy sensors
+        ["power"] = "W",
+        ["energy"] = "kWh",
+        ["voltage"] = "V",
+        ["current"] = "A",
+        
+        // Device health
+        ["battery"] = "%",
+        ["battery_low"] = null,
+        ["linkquality"] = null,
+        
+        // Position/Level sensors
+        ["position"] = "%",
+        ["brightness"] = null,
+        ["color_temp"] = "K",
+        
+        // Water sensors
+        ["water_leak"] = null,
+        ["soil_moisture"] = "%",
+    };
+
+    /// <summary>
+    /// Track the last known state for each device+capability combination.
+    /// Key format: "{deviceId}:{capability}" -> last known value
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, object?> DeviceStateCache = new();
+
     public async Task<ProjectedEventData> ProjectAsync(
         SignalEvent ev, 
         CancellationToken cancellationToken = default,
         PipelineContext? pipelineContext = null)
     {
-        // Handle motion sensor events
-        if (ev.Capability == "motion" && ev.EventType == "detection")
+        // Extract ALL sensor readings from the payload first - each measurement is a separate reading
+        var allReadings = ExtractAllSensorReadings(ev);
+        
+        TriggerEvent? trigger = null;
+        
+        // Handle trigger events (occupancy, motion, button, contact, state changes)
+        // IMPORTANT: Only create triggers when state actually changes
+        if (ev.Capability == "occupancy" && ev.EventType == "detection")
         {
-            return await HandleMotionEventAsync(ev, cancellationToken, pipelineContext);
+            trigger = TryCreateOccupancyTrigger(ev);
         }
-
-        // Handle button presses (triggers)
-        if (ev.Capability == "button" && ev.EventType == "press")
+        else if (ev.Capability == "motion" && ev.EventType == "detection")
         {
-            return await HandleButtonEventAsync(ev, cancellationToken, pipelineContext);
+            trigger = TryCreateMotionTrigger(ev);
         }
-
-        // Handle temperature sensors (readings)
-        if (ev.Capability == "temperature" && ev.EventType == "measurement")
+        else if (ev.Capability == "button" && ev.EventType == "press")
         {
-            return await HandleTemperatureEventAsync(ev, cancellationToken, pipelineContext);
+            // Buttons always trigger (they're discrete events, not state)
+            trigger = CreateButtonTrigger(ev);
         }
-
-        // Handle contact sensors (triggers)
-        if (ev.Capability == "contact")
+        else if (ev.Capability == "contact")
         {
-            return await HandleContactEventAsync(ev, cancellationToken, pipelineContext);
+            trigger = TryCreateContactTrigger(ev);
         }
-
-        // Handle generic sensor readings from any device with numeric values
-        return await HandleGenericSensorReadingsAsync(ev, cancellationToken, pipelineContext);
-    }
-
-    private async Task<ProjectedEventData> HandleButtonEventAsync(SignalEvent ev, CancellationToken ct, PipelineContext? pipelineContext = null)
-    {
-        var payload = ev.RawPayload;
-
-        var trigger = new TriggerEvent(
-            Id: Guid.NewGuid(),
-            SignalEventId: ev.Id,
-            TimestampUtc: ev.TimestampUtc,
-            DeviceId: ev.DeviceId,
-            Capability: ev.Capability,
-            TriggerType: "button",
-            TriggerSubType: ev.EventSubType, // e.g., "single", "double", "hold"
-            Value: true
-        );
-
-        db.TriggerEvents.Add(TriggerEventEntity.FromModel(trigger));
-
-        // Also extract any sensor readings from the button (battery, linkquality, etc.)
-        var readings = ExtractCommonSensorReadings(ev);
-
-        if (readings.Count > 0)
+        else
         {
-            db.SensorReadings.AddRange(readings.Select(SensorReadingEntity.FromModel));
+            // Check for state-based triggers (switches/lights)
+            trigger = TryCreateStateTrigger(ev);
         }
-
-        await db.SaveChangesAsync(ct);
-
-        // Broadcast to real-time clients
-        await broadcaster.BroadcastTriggerEventAsync(trigger);
-        foreach (var reading in readings)
+        
+        // Persist trigger if we have one
+        if (trigger != null)
+        {
+            db.TriggerEvents.Add(TriggerEventEntity.FromModel(trigger));
+        }
+        
+        // Persist all sensor readings
+        if (allReadings.Count > 0)
+        {
+            db.SensorReadings.AddRange(allReadings.Select(SensorReadingEntity.FromModel));
+        }
+        
+        // Save to database
+        if (trigger != null || allReadings.Count > 0)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        
+        // Broadcast trigger event
+        if (trigger != null)
+        {
+            await broadcaster.BroadcastTriggerEventAsync(trigger);
+            await automationEngine.ProcessTriggerEventAsync(trigger, pipelineContext);
+            
+            // Handle device state changes for automation engine
+            await HandleTriggerDeviceStateChange(ev, trigger, pipelineContext);
+        }
+        
+        // Broadcast all sensor readings
+        foreach (var reading in allReadings)
         {
             await broadcaster.BroadcastSensorReadingAsync(reading);
-        }
-
-        // Notify automation engine of the trigger event (TriggerEvent type automations)
-        await automationEngine.ProcessTriggerEventAsync(trigger, pipelineContext);
-        
-        // Also notify as device state change so DeviceState type automations work
-        // This allows automations with trigger "DeviceState" + property "action" to fire on button presses
-        await automationEngine.ProcessDeviceStateChangeAsync(
-            ev.DeviceId, 
-            "action", 
-            null, 
-            ev.EventSubType, // "single", "double", "hold", etc.
-            pipelineContext);
-        
-        // Notify automation engine of any sensor readings
-        foreach (var reading in readings)
-        {
             await automationEngine.ProcessSensorReadingAsync(reading, pipelineContext);
         }
-
-        return new ProjectedEventData(trigger, readings);
+        
+        return new ProjectedEventData(trigger, allReadings);
     }
 
-    private async Task<ProjectedEventData> HandleTemperatureEventAsync(SignalEvent ev, CancellationToken ct, PipelineContext? pipelineContext = null)
+    /// <summary>
+    /// Extracts ALL sensor readings from the payload. Each numeric/boolean metric becomes a separate SensorReading.
+    /// </summary>
+    private List<SensorReading> ExtractAllSensorReadings(SignalEvent ev)
     {
         var payload = ev.RawPayload;
         var readings = new List<SensorReading>();
 
-        // Primary temperature reading
-        if (ev.Value.HasValue)
+        if (payload.ValueKind != JsonValueKind.Object)
+            return readings;
+
+        foreach (var prop in payload.EnumerateObject())
         {
-            readings.Add(new SensorReading(
-                Id: Guid.NewGuid(),
-                SignalEventId: ev.Id,
-                TimestampUtc: ev.TimestampUtc,
-                DeviceId: ev.DeviceId,
-                Metric: "temperature",
-                Value: ev.Value.Value,
-                Unit: "°C"
-            ));
-        }
-
-        // Humidity (often paired with temperature)
-        if (TryGetDouble(payload, "humidity", out var humidity))
-        {
-            readings.Add(new SensorReading(
-                Id: Guid.NewGuid(),
-                SignalEventId: ev.Id,
-                TimestampUtc: ev.TimestampUtc,
-                DeviceId: ev.DeviceId,
-                Metric: "humidity",
-                Value: humidity,
-                Unit: "%"
-            ));
-        }
-
-        // Pressure (some sensors include this)
-        if (TryGetDouble(payload, "pressure", out var pressure))
-        {
-            readings.Add(new SensorReading(
-                Id: Guid.NewGuid(),
-                SignalEventId: ev.Id,
-                TimestampUtc: ev.TimestampUtc,
-                DeviceId: ev.DeviceId,
-                Metric: "pressure",
-                Value: pressure,
-                Unit: "hPa"
-            ));
-        }
-
-        // Common sensor readings (battery, linkquality, voltage)
-        readings.AddRange(ExtractCommonSensorReadings(ev));
-
-        if (readings.Count > 0)
-        {
-            db.SensorReadings.AddRange(readings.Select(SensorReadingEntity.FromModel));
-        }
-
-        await db.SaveChangesAsync(ct);
-
-        // Broadcast to real-time clients
-        foreach (var reading in readings)
-        {
-            await broadcaster.BroadcastSensorReadingAsync(reading);
-        }
-
-        // Notify automation engine of sensor readings
-        foreach (var reading in readings)
-        {
-            await automationEngine.ProcessSensorReadingAsync(reading, pipelineContext);
-        }
-
-        return new ProjectedEventData(null, readings);
-    }
-
-    private async Task<ProjectedEventData> HandleContactEventAsync(SignalEvent ev, CancellationToken ct, PipelineContext? pipelineContext = null)
-    {
-        var payload = ev.RawPayload;
-
-        bool? contact = TryGetBool(payload, "contact");
-
-        var trigger = new TriggerEvent(
-            Id: Guid.NewGuid(),
-            SignalEventId: ev.Id,
-            TimestampUtc: ev.TimestampUtc,
-            DeviceId: ev.DeviceId,
-            Capability: ev.Capability,
-            TriggerType: "contact",
-            TriggerSubType: contact == true ? "closed" : "open",
-            Value: contact ?? false
-        );
-
-        db.TriggerEvents.Add(TriggerEventEntity.FromModel(trigger));
-
-        var readings = ExtractCommonSensorReadings(ev);
-
-        if (readings.Count > 0)
-        {
-            db.SensorReadings.AddRange(readings.Select(SensorReadingEntity.FromModel));
-        }
-
-        await db.SaveChangesAsync(ct);
-
-        await broadcaster.BroadcastTriggerEventAsync(trigger);
-        foreach (var reading in readings)
-        {
-            await broadcaster.BroadcastSensorReadingAsync(reading);
-        }
-
-        // Notify automation engine of the trigger event
-        await automationEngine.ProcessTriggerEventAsync(trigger, pipelineContext);
-        
-        // Notify automation engine of any sensor readings
-        foreach (var reading in readings)
-        {
-            await automationEngine.ProcessSensorReadingAsync(reading, pipelineContext);
-        }
-
-        return new ProjectedEventData(trigger, readings);
-    }
-
-    private async Task<ProjectedEventData> HandleGenericSensorReadingsAsync(SignalEvent ev, CancellationToken ct, PipelineContext? pipelineContext = null)
-    {
-        // For any other event, try to extract common sensor readings
-        var readings = ExtractCommonSensorReadings(ev);
-
-        // Also try to extract any state-based trigger (e.g., on/off switches)
-        TriggerEvent? trigger = null;
-        var payload = ev.RawPayload;
-
-        if (payload.ValueKind == JsonValueKind.Object)
-        {
-            // Check for state property (common in switches/lights)
-            if (payload.TryGetProperty("state", out var stateProp) && stateProp.ValueKind == JsonValueKind.String)
+            var metricName = prop.Name.ToLowerInvariant();
+            
+            // Check if this is a known sensor metric
+            if (KnownSensorMetrics.TryGetValue(metricName, out var unit))
             {
-                var state = stateProp.GetString();
-                if (state == "ON" || state == "OFF")
+                double? value = null;
+                
+                // Handle numeric values
+                if (prop.Value.ValueKind == JsonValueKind.Number && prop.Value.TryGetDouble(out var numValue))
                 {
-                    trigger = new TriggerEvent(
+                    value = numValue;
+                    
+                    // Special handling for voltage (often in mV)
+                    if (metricName == "voltage" && value > 100)
+                    {
+                        value /= 1000.0; // Convert mV to V
+                    }
+                }
+                // Handle boolean values (convert to 1/0)
+                else if (prop.Value.ValueKind == JsonValueKind.True)
+                {
+                    value = 1;
+                }
+                else if (prop.Value.ValueKind == JsonValueKind.False)
+                {
+                    value = 0;
+                }
+                
+                if (value.HasValue)
+                {
+                    // Normalize metric names (e.g., device_temperature -> temperature)
+                    var normalizedMetric = NormalizeMetricName(metricName);
+                    
+                    readings.Add(new SensorReading(
                         Id: Guid.NewGuid(),
                         SignalEventId: ev.Id,
                         TimestampUtc: ev.TimestampUtc,
                         DeviceId: ev.DeviceId,
-                        Capability: "switch",
-                        TriggerType: "state",
-                        TriggerSubType: state?.ToLower(),
-                        Value: state == "ON"
-                    );
-
-                    db.TriggerEvents.Add(TriggerEventEntity.FromModel(trigger));
+                        Metric: normalizedMetric,
+                        Value: value.Value,
+                        Unit: unit
+                    ));
                 }
             }
-
-            // Check for brightness changes (also a trigger for automation purposes)
-            if (TryGetDouble(payload, "brightness", out var brightness))
-            {
-                readings.Add(new SensorReading(
-                    Id: Guid.NewGuid(),
-                    SignalEventId: ev.Id,
-                    TimestampUtc: ev.TimestampUtc,
-                    DeviceId: ev.DeviceId,
-                    Metric: "brightness",
-                    Value: brightness,
-                    Unit: null
-                ));
-            }
-
-            // Check for power consumption
-            if (TryGetDouble(payload, "power", out var power))
-            {
-                readings.Add(new SensorReading(
-                    Id: Guid.NewGuid(),
-                    SignalEventId: ev.Id,
-                    TimestampUtc: ev.TimestampUtc,
-                    DeviceId: ev.DeviceId,
-                    Metric: "power",
-                    Value: power,
-                    Unit: "W"
-                ));
-            }
-
-            // Check for energy consumption
-            if (TryGetDouble(payload, "energy", out var energy))
-            {
-                readings.Add(new SensorReading(
-                    Id: Guid.NewGuid(),
-                    SignalEventId: ev.Id,
-                    TimestampUtc: ev.TimestampUtc,
-                    DeviceId: ev.DeviceId,
-                    Metric: "energy",
-                    Value: energy,
-                    Unit: "kWh"
-                ));
-            }
-        }
-
-        if (readings.Count > 0)
-        {
-            db.SensorReadings.AddRange(readings.Select(SensorReadingEntity.FromModel));
-        }
-
-        if (trigger != null || readings.Count > 0)
-        {
-            await db.SaveChangesAsync(ct);
-
-            if (trigger != null)
-            {
-                await broadcaster.BroadcastTriggerEventAsync(trigger);
-            }
-
-            foreach (var reading in readings)
-            {
-                await broadcaster.BroadcastSensorReadingAsync(reading);
-            }
-
-            // Notify automation engine of the trigger event
-            if (trigger != null)
-            {
-                await automationEngine.ProcessTriggerEventAsync(trigger, pipelineContext);
-                
-                // Also notify as device state change for "state" property
-                // This updates the cached state for toggle operations
-                if (trigger.TriggerType == "state")
-                {
-                    await automationEngine.ProcessDeviceStateChangeAsync(
-                        ev.DeviceId,
-                        "state",
-                        null,
-                        trigger.TriggerSubType?.ToUpper(), // "ON" or "OFF"
-                        pipelineContext
-                    );
-                }
-            }
-            
-            // Notify automation engine of any sensor readings
-            foreach (var reading in readings)
-            {
-                await automationEngine.ProcessSensorReadingAsync(reading, pipelineContext);
-            }
-        }
-
-        return new ProjectedEventData(trigger, readings);
-    }
-
-    /// <summary>
-    /// Extracts common sensor readings present in most Zigbee device payloads
-    /// </summary>
-    private List<SensorReading> ExtractCommonSensorReadings(SignalEvent ev)
-    {
-        var payload = ev.RawPayload;
-        var readings = new List<SensorReading>();
-
-        if (TryGetDouble(payload, "battery", out var battery))
-        {
-            readings.Add(new SensorReading(
-                Id: Guid.NewGuid(),
-                SignalEventId: ev.Id,
-                TimestampUtc: ev.TimestampUtc,
-                DeviceId: ev.DeviceId,
-                Metric: "battery",
-                Value: battery,
-                Unit: "%"
-            ));
-        }
-
-        if (TryGetDouble(payload, "linkquality", out var lqi))
-        {
-            readings.Add(new SensorReading(
-                Id: Guid.NewGuid(),
-                SignalEventId: ev.Id,
-                TimestampUtc: ev.TimestampUtc,
-                DeviceId: ev.DeviceId,
-                Metric: "linkquality",
-                Value: lqi,
-                Unit: null
-            ));
-        }
-
-        if (TryGetDouble(payload, "voltage", out var voltage))
-        {
-            readings.Add(new SensorReading(
-                Id: Guid.NewGuid(),
-                SignalEventId: ev.Id,
-                TimestampUtc: ev.TimestampUtc,
-                DeviceId: ev.DeviceId,
-                Metric: "voltage",
-                Value: voltage / 1000.0,
-                Unit: "V"
-            ));
         }
 
         return readings;
     }
+    
+    /// <summary>
+    /// Normalize metric names to canonical forms
+    /// </summary>
+    private static string NormalizeMetricName(string metric) => metric switch
+    {
+        "device_temperature" => "temperature",
+        "illuminance_lux" => "illuminance",
+        _ => metric
+    };
 
-    private async Task<ProjectedEventData> HandleMotionEventAsync(SignalEvent ev, CancellationToken ct, PipelineContext? pipelineContext = null)
+    private static TriggerEvent CreateButtonTrigger(SignalEvent ev)
+    {
+        // For buttons, the capability may be the button source (e.g., "button_1", "button_2")
+        // or just "button" for single-button devices.
+        // The eventSubType contains the action type (single, double, hold, etc.)
+        return new TriggerEvent(
+            Id: Guid.NewGuid(),
+            SignalEventId: ev.Id,
+            TimestampUtc: ev.TimestampUtc,
+            DeviceId: ev.DeviceId,
+            Capability: ev.Capability, // "button", "button_1", "button_2", etc.
+            TriggerType: "button",
+            TriggerSubType: ev.EventSubType, // "single", "double", "hold", etc.
+            Value: true // Buttons are always "active" when pressed
+        );
+    }
+
+    /// <summary>
+    /// Create occupancy trigger only if the occupancy state actually changed
+    /// </summary>
+    private TriggerEvent? TryCreateOccupancyTrigger(SignalEvent ev)
     {
         var payload = ev.RawPayload;
-
         bool? occupancy = TryGetBool(payload, "occupancy");
-        bool isActive = string.Equals(ev.EventSubType, "active", StringComparison.OrdinalIgnoreCase);
+        bool isPresent = string.Equals(ev.EventSubType, "present", StringComparison.OrdinalIgnoreCase);
+        bool currentValue = occupancy ?? isPresent;
+        
+        // Check if state changed
+        var cacheKey = $"{ev.DeviceId}:occupancy";
+        var previousValue = DeviceStateCache.GetValueOrDefault(cacheKey);
+        
+        // Update cache
+        DeviceStateCache[cacheKey] = currentValue;
+        
+        // Only trigger if state changed (or first time seeing this device)
+        if (previousValue is bool prevBool && prevBool == currentValue)
+        {
+            return null; // No change, no trigger
+        }
 
-        var trigger = new TriggerEvent(
+        return new TriggerEvent(
+            Id: Guid.NewGuid(),
+            SignalEventId: ev.Id,
+            TimestampUtc: ev.TimestampUtc,
+            DeviceId: ev.DeviceId,
+            Capability: ev.Capability,
+            TriggerType: "occupancy",
+            TriggerSubType: currentValue ? "present" : "clear",
+            Value: currentValue
+        );
+    }
+
+    /// <summary>
+    /// Create motion trigger only if the motion state actually changed
+    /// </summary>
+    private TriggerEvent? TryCreateMotionTrigger(SignalEvent ev)
+    {
+        var payload = ev.RawPayload;
+        bool? motion = TryGetBool(payload, "motion");
+        bool isActive = string.Equals(ev.EventSubType, "active", StringComparison.OrdinalIgnoreCase);
+        bool currentValue = motion ?? isActive;
+        
+        // Check if state changed
+        var cacheKey = $"{ev.DeviceId}:motion";
+        var previousValue = DeviceStateCache.GetValueOrDefault(cacheKey);
+        
+        // Update cache
+        DeviceStateCache[cacheKey] = currentValue;
+        
+        // Only trigger if state changed (or first time seeing this device)
+        if (previousValue is bool prevBool && prevBool == currentValue)
+        {
+            return null; // No change, no trigger
+        }
+
+        return new TriggerEvent(
             Id: Guid.NewGuid(),
             SignalEventId: ev.Id,
             TimestampUtc: ev.TimestampUtc,
             DeviceId: ev.DeviceId,
             Capability: ev.Capability,
             TriggerType: "motion",
-            TriggerSubType: ev.EventSubType,
-            Value: occupancy ?? isActive
+            TriggerSubType: currentValue ? "active" : "inactive",
+            Value: currentValue
         );
+    }
 
-        db.TriggerEvents.Add(TriggerEventEntity.FromModel(trigger));
-
-        var readings = new List<SensorReading>();
-
-        // Motion sensors often have temperature
-        if (TryGetDouble(payload, "device_temperature", out var temp))
-        {
-            readings.Add(new SensorReading(
-                Id: Guid.NewGuid(),
-                SignalEventId: ev.Id,
-                TimestampUtc: ev.TimestampUtc,
-                DeviceId: ev.DeviceId,
-                Metric: "temperature",
-                Value: temp,
-                Unit: "°C"
-            ));
-        }
-
-        // Motion sensors often have illuminance
-        if (TryGetDouble(payload, "illuminance", out var lux))
-        {
-            readings.Add(new SensorReading(
-                Id: Guid.NewGuid(),
-                SignalEventId: ev.Id,
-                TimestampUtc: ev.TimestampUtc,
-                DeviceId: ev.DeviceId,
-                Metric: "illuminance",
-                Value: lux,
-                Unit: "lx"
-            ));
-        }
-
-        // Common sensor readings (battery, linkquality, voltage)
-        readings.AddRange(ExtractCommonSensorReadings(ev));
-
-        if (readings.Count > 0)
-        {
-            db.SensorReadings.AddRange(readings.Select(SensorReadingEntity.FromModel));
-        }
-
-        await db.SaveChangesAsync(ct);
-
-        // Broadcast to real-time clients
-        await broadcaster.BroadcastTriggerEventAsync(trigger);
-        foreach (var reading in readings)
-        {
-            await broadcaster.BroadcastSensorReadingAsync(reading);
-        }
-
-        // Notify automation engine of the trigger event
-        await automationEngine.ProcessTriggerEventAsync(trigger, pipelineContext);
+    /// <summary>
+    /// Create contact trigger only if the contact state actually changed
+    /// </summary>
+    private TriggerEvent? TryCreateContactTrigger(SignalEvent ev)
+    {
+        var payload = ev.RawPayload;
+        bool? contact = TryGetBool(payload, "contact");
+        bool currentValue = contact ?? false;
         
-        // Notify automation engine of any sensor readings
-        foreach (var reading in readings)
+        // Check if state changed
+        var cacheKey = $"{ev.DeviceId}:contact";
+        var previousValue = DeviceStateCache.GetValueOrDefault(cacheKey);
+        
+        // Update cache
+        DeviceStateCache[cacheKey] = currentValue;
+        
+        // Only trigger if state changed (or first time seeing this device)
+        if (previousValue is bool prevBool && prevBool == currentValue)
         {
-            await automationEngine.ProcessSensorReadingAsync(reading, pipelineContext);
+            return null; // No change, no trigger
         }
 
-        return new ProjectedEventData(trigger, readings);
+        return new TriggerEvent(
+            Id: Guid.NewGuid(),
+            SignalEventId: ev.Id,
+            TimestampUtc: ev.TimestampUtc,
+            DeviceId: ev.DeviceId,
+            Capability: ev.Capability,
+            TriggerType: "contact",
+            TriggerSubType: currentValue ? "closed" : "open",
+            Value: currentValue
+        );
+    }
+
+    /// <summary>
+    /// Create state trigger (for switches/lights) only if state actually changed
+    /// </summary>
+    private TriggerEvent? TryCreateStateTrigger(SignalEvent ev)
+    {
+        var payload = ev.RawPayload;
+
+        if (payload.ValueKind != JsonValueKind.Object)
+            return null;
+
+        // Check for state property (common in switches/lights)
+        if (payload.TryGetProperty("state", out var stateProp) && stateProp.ValueKind == JsonValueKind.String)
+        {
+            var state = stateProp.GetString();
+            if (state == "ON" || state == "OFF")
+            {
+                // Check if state changed
+                var cacheKey = $"{ev.DeviceId}:state";
+                var previousValue = DeviceStateCache.GetValueOrDefault(cacheKey);
+                
+                // Update cache
+                DeviceStateCache[cacheKey] = state;
+                
+                // Only trigger if state changed (or first time seeing this device)
+                if (previousValue is string prevState && prevState == state)
+                {
+                    return null; // No change, no trigger
+                }
+                
+                return new TriggerEvent(
+                    Id: Guid.NewGuid(),
+                    SignalEventId: ev.Id,
+                    TimestampUtc: ev.TimestampUtc,
+                    DeviceId: ev.DeviceId,
+                    Capability: "switch",
+                    TriggerType: "state",
+                    TriggerSubType: state?.ToLower(),
+                    Value: state == "ON"
+                );
+            }
+        }
+
+        return null;
+    }
+
+    private async Task HandleTriggerDeviceStateChange(SignalEvent ev, TriggerEvent trigger, PipelineContext? pipelineContext)
+    {
+        switch (trigger.TriggerType)
+        {
+            case "button":
+                // Notify as device state change so DeviceState type automations work
+                await automationEngine.ProcessDeviceStateChangeAsync(
+                    ev.DeviceId,
+                    "action",
+                    null,
+                    ev.EventSubType,
+                    pipelineContext);
+                break;
+                
+            case "state":
+                // Update cached state for toggle operations
+                await automationEngine.ProcessDeviceStateChangeAsync(
+                    ev.DeviceId,
+                    "state",
+                    null,
+                    trigger.TriggerSubType?.ToUpper(),
+                    pipelineContext);
+                break;
+        }
     }
 
     private static bool? TryGetBool(JsonElement payload, string name)
@@ -480,22 +412,6 @@ public class SignalEventProjectionService(
         }
 
         return null;
-    }
-
-    private static bool TryGetDouble(JsonElement payload, string name, out double value)
-    {
-        value = default;
-
-        if (payload.ValueKind != JsonValueKind.Object)
-            return false;
-
-        if (!payload.TryGetProperty(name, out var prop))
-            return false;
-
-        if (prop.ValueKind == JsonValueKind.Number && prop.TryGetDouble(out value))
-            return true;
-
-        return false;
     }
 }
 

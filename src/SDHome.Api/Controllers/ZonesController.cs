@@ -264,6 +264,216 @@ public class ZonesController(SignalsDbContext db) : ControllerBase
         return NoContent();
     }
 
+    // ===== CAPABILITY ASSIGNMENT ENDPOINTS =====
+
+    /// <summary>
+    /// Get all zones with their capability assignments (for dashboard)
+    /// </summary>
+    [HttpGet("dashboard")]
+    public async Task<ActionResult<List<ZoneWithCapabilities>>> GetZonesForDashboard()
+    {
+        var zones = await db.Zones
+            .AsNoTracking()
+            .Include(z => z.ParentZone)
+            .Include(z => z.ChildZones)
+            .Include(z => z.Devices)
+            .Include(z => z.CapabilityAssignments)
+                .ThenInclude(c => c.Device)
+            .OrderBy(z => z.ParentZoneId ?? 0)
+            .ThenBy(z => z.SortOrder)
+            .ThenBy(z => z.Name)
+            .ToListAsync();
+
+        return zones.Select(z => new ZoneWithCapabilities
+        {
+            Id = z.Id,
+            Name = z.Name,
+            Description = z.Description,
+            Icon = z.Icon,
+            Color = z.Color,
+            ParentZoneId = z.ParentZoneId,
+            SortOrder = z.SortOrder,
+            CreatedAt = z.CreatedAt,
+            UpdatedAt = z.UpdatedAt,
+            ParentZone = z.ParentZone?.ToModel(),
+            ChildZones = z.ChildZones.OrderBy(c => c.SortOrder).Select(c => c.ToModel()).ToList(),
+            CapabilityAssignments = z.CapabilityAssignments.OrderBy(c => c.Capability).ThenBy(c => c.Priority).Select(c => c.ToModel()).ToList(),
+            Devices = z.Devices.OrderBy(d => d.FriendlyName).Select(d => d.ToModel()).ToList()
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Get all available capability types
+    /// </summary>
+    [HttpGet("capabilities/types")]
+    public ActionResult<object> GetCapabilityTypes()
+    {
+        return new
+        {
+            capabilities = ZoneCapabilities.All,
+            labels = ZoneCapabilities.Labels,
+            icons = ZoneCapabilities.Icons,
+            defaultProperties = ZoneCapabilities.DefaultProperties
+        };
+    }
+
+    /// <summary>
+    /// Get all capability assignments across all zones
+    /// </summary>
+    [HttpGet("capabilities/all")]
+    public async Task<ActionResult<List<ZoneCapabilityAssignment>>> GetAllCapabilities()
+    {
+        var assignments = await db.ZoneCapabilityAssignments
+            .AsNoTracking()
+            .Include(a => a.Zone)
+            .Include(a => a.Device)
+            .OrderBy(a => a.Zone!.Name)
+            .ThenBy(a => a.Capability)
+            .ThenBy(a => a.Priority)
+            .ToListAsync();
+
+        return assignments.Select(a => a.ToModel()).ToList();
+    }
+
+    /// <summary>
+    /// Get all capability assignments for a zone
+    /// </summary>
+    [HttpGet("{id:int}/capabilities")]
+    public async Task<ActionResult<List<ZoneCapabilityAssignment>>> GetZoneCapabilities(int id)
+    {
+        var zone = await db.Zones.FindAsync(id);
+        if (zone == null)
+            return NotFound("Zone not found");
+
+        var assignments = await db.ZoneCapabilityAssignments
+            .AsNoTracking()
+            .Include(a => a.Zone)
+            .Include(a => a.Device)
+            .Where(a => a.ZoneId == id)
+            .OrderBy(a => a.Capability)
+            .ThenBy(a => a.Priority)
+            .ToListAsync();
+
+        return assignments.Select(a => a.ToModel()).ToList();
+    }
+
+    /// <summary>
+    /// Assign a device as the primary for a capability in a zone
+    /// </summary>
+    [HttpPost("{id:int}/capabilities")]
+    public async Task<ActionResult<ZoneCapabilityAssignment>> AssignCapability(
+        int id, 
+        [FromBody] CreateZoneCapabilityAssignmentRequest request)
+    {
+        var zone = await db.Zones.FindAsync(id);
+        if (zone == null)
+            return NotFound("Zone not found");
+
+        var device = await db.Devices.FindAsync(request.DeviceId);
+        if (device == null)
+            return NotFound("Device not found");
+
+        // Check if this exact assignment already exists
+        var existing = await db.ZoneCapabilityAssignments
+            .FirstOrDefaultAsync(a => 
+                a.ZoneId == id && 
+                a.Capability == request.Capability && 
+                a.Priority == request.Priority);
+
+        if (existing != null)
+        {
+            // Update existing assignment
+            existing.DeviceId = request.DeviceId;
+            existing.Property = request.Property;
+            existing.DisplayName = request.DisplayName;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            // Create new assignment
+            existing = new ZoneCapabilityAssignmentEntity
+            {
+                ZoneId = id,
+                Capability = request.Capability,
+                DeviceId = request.DeviceId,
+                Property = request.Property,
+                Priority = request.Priority,
+                DisplayName = request.DisplayName,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.ZoneCapabilityAssignments.Add(existing);
+        }
+
+        await db.SaveChangesAsync();
+
+        // Reload with navigation properties
+        await db.Entry(existing).Reference(a => a.Zone).LoadAsync();
+        await db.Entry(existing).Reference(a => a.Device).LoadAsync();
+
+        return CreatedAtAction(
+            nameof(GetZoneCapabilities), 
+            new { id }, 
+            existing.ToModel());
+    }
+
+    /// <summary>
+    /// Remove a capability assignment from a zone
+    /// </summary>
+    [HttpDelete("{id:int}/capabilities/{capability}")]
+    public async Task<ActionResult> RemoveCapability(int id, string capability, [FromQuery] int priority = 0)
+    {
+        var assignment = await db.ZoneCapabilityAssignments
+            .FirstOrDefaultAsync(a => 
+                a.ZoneId == id && 
+                a.Capability == capability && 
+                a.Priority == priority);
+
+        if (assignment == null)
+            return NotFound("Capability assignment not found");
+
+        db.ZoneCapabilityAssignments.Remove(assignment);
+        await db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Get a zone with all its capability assignments
+    /// </summary>
+    [HttpGet("{id:int}/full")]
+    public async Task<ActionResult<ZoneWithCapabilities>> GetZoneWithCapabilities(int id)
+    {
+        var zone = await db.Zones
+            .AsNoTracking()
+            .Include(z => z.ParentZone)
+            .Include(z => z.ChildZones)
+            .Include(z => z.Devices)
+            .Include(z => z.CapabilityAssignments)
+                .ThenInclude(c => c.Device)
+            .FirstOrDefaultAsync(z => z.Id == id);
+
+        if (zone == null)
+            return NotFound();
+
+        return new ZoneWithCapabilities
+        {
+            Id = zone.Id,
+            Name = zone.Name,
+            Description = zone.Description,
+            Icon = zone.Icon,
+            Color = zone.Color,
+            ParentZoneId = zone.ParentZoneId,
+            SortOrder = zone.SortOrder,
+            CreatedAt = zone.CreatedAt,
+            UpdatedAt = zone.UpdatedAt,
+            ParentZone = zone.ParentZone?.ToModel(),
+            ChildZones = zone.ChildZones.OrderBy(c => c.SortOrder).Select(c => c.ToModel()).ToList(),
+            CapabilityAssignments = zone.CapabilityAssignments.OrderBy(c => c.Capability).ThenBy(c => c.Priority).Select(c => c.ToModel()).ToList(),
+            Devices = zone.Devices.OrderBy(d => d.FriendlyName).Select(d => d.ToModel()).ToList()
+        };
+    }
+
     private async Task LoadChildrenRecursively(ZoneEntity zone)
     {
         await db.Entry(zone).Collection(z => z.ChildZones).LoadAsync();

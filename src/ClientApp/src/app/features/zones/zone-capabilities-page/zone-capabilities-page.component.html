@@ -1,0 +1,130 @@
+<div class="capabilities-page">
+  <!-- Header -->
+  <header class="page-header">
+    <button class="back-btn" (click)="goBack()">← Back</button>
+
+    <div class="zone-selector">
+      @if (currentZone(); as zone) {
+        <span class="zone-icon">{{ zone.icon || '🏠' }}</span>
+        <select [ngModel]="currentZoneId()" (ngModelChange)="changeZone($event)">
+          @for (z of zones(); track z.id) {
+            <option [ngValue]="z.id">{{ z.name }}</option>
+          }
+        </select>
+      }
+    </div>
+
+    <h1>Capabilities</h1>
+  </header>
+
+  <p class="page-description">
+    Drag devices from the right panel onto capabilities to assign them.
+    This lets you create automations using <code>zone.{{ currentZone()?.name?.toLowerCase()?.replace(' ', '_') }}.motion</code> instead of device IDs.
+  </p>
+
+  @if (loading()) {
+    <div class="loading">
+      <div class="spinner"></div>
+      <span>Loading...</span>
+    </div>
+  } @else {
+    <div class="main-layout">
+      <!-- Capabilities Grid -->
+      <section class="capabilities-section">
+        <h2>Zone Capabilities</h2>
+        <div class="capabilities-grid">
+          @for (cap of capabilityTypes; track cap.type) {
+            <div
+              class="capability-card"
+              [class.drag-over]="dragOverCapability() === cap.type"
+              [class.has-device]="getAssignedDevice(cap.type)"
+              (dragover)="onDragOver($event, cap.type)"
+              (dragleave)="onDragLeave($event, cap.type)"
+              (drop)="onDrop($event, cap.type)"
+            >
+              <div class="cap-header">
+                <span class="cap-icon">{{ cap.icon }}</span>
+                <span class="cap-label">{{ cap.label }}</span>
+              </div>
+
+              <div class="cap-content">
+                @if (getAssignedDevice(cap.type); as device) {
+                  <div class="assigned-device">
+                    @if (device.imageUrl) {
+                      <img [src]="device.imageUrl" [alt]="device.displayName || device.friendlyName" class="device-img" />
+                    } @else {
+                      <div class="device-icon-fallback">{{ getDeviceIcon(device.deviceType) }}</div>
+                    }
+                    <span class="device-name">{{ device.displayName || device.friendlyName }}</span>
+                    <button class="remove-btn" (click)="removeCapability(cap.type)" title="Remove">✕</button>
+                  </div>
+                } @else {
+                  <div class="drop-zone">
+                    <span class="drop-text">Drop device here</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Devices Panel -->
+      <aside class="devices-panel">
+        <h2>Available Devices</h2>
+
+        <div class="search-box">
+          <input
+            type="text"
+            placeholder="Search devices..."
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)"
+          />
+          @if (searchQuery()) {
+            <button class="clear-btn" (click)="searchQuery.set('')">✕</button>
+          }
+        </div>
+
+        <div class="devices-list">
+          @for (device of zoneDevices(); track device.deviceId) {
+            <div
+              class="device-item"
+              draggable="true"
+              (dragstart)="onDragStart($event, device)"
+              (dragend)="onDragEnd($event)"
+            >
+              @if (device.imageUrl) {
+                <img [src]="device.imageUrl" [alt]="device.displayName || device.friendlyName" class="device-img" />
+              } @else {
+                <div class="device-icon-fallback">{{ getDeviceIcon(device.deviceType) }}</div>
+              }
+              <div class="device-info">
+                <span class="device-name">{{ device.displayName || device.friendlyName }}</span>
+                @if (device.manufacturer || device.modelId) {
+                  <span class="device-meta">{{ device.manufacturer }} {{ device.modelId }}</span>
+                }
+              </div>
+              <span class="drag-handle">⋮⋮</span>
+            </div>
+          } @empty {
+            <div class="empty-state">
+              @if (searchQuery()) {
+                <p>No devices match "{{ searchQuery() }}"</p>
+              } @else {
+                <p>No devices in this zone</p>
+                <a routerLink="/zones/manage">Assign devices to this zone →</a>
+              }
+            </div>
+          }
+        </div>
+      </aside>
+    </div>
+  }
+
+  @if (saving()) {
+    <div class="saving-toast">
+      <div class="spinner-sm"></div>
+      <span>Saving...</span>
+    </div>
+  }
+</div>

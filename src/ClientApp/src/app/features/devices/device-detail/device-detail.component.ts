@@ -336,8 +336,8 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
     try {
       const def = await this.apiService.getDeviceDefinition(this.deviceId()).toPromise();
       this.definition.set(def ?? null);
-      
-      // Definition now actively fetches state, but let's also do a separate 
+
+      // Definition now actively fetches state, but let's also do a separate
       // state fetch for maximum reliability
       this.refreshDeviceState();
     } catch (err: any) {
@@ -361,7 +361,7 @@ export class DeviceDetailComponent implements OnInit, OnDestroy {
       const response = await this.apiService.getDeviceState(this.deviceId()).toPromise();
       if (response && (response as any).state) {
         const newState = (response as any).state;
-        
+
         // Merge the fresh state into the definition
         const updatedDef = DeviceDefinition.fromJS({
           ...def.toJSON(),

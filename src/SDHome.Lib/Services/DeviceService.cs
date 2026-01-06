@@ -619,16 +619,43 @@ public class DeviceService(
 
         if (zigbeeDevice.definition?.exposes != null)
         {
-            device.Capabilities = zigbeeDevice.definition.exposes
-                .Where(e => !string.IsNullOrEmpty(e.property))
-                .Select(e => e.property!)
-                .Distinct()
-                .ToList();
-
+            device.Capabilities = ExtractAllCapabilities(zigbeeDevice.definition.exposes);
             device.DeviceType = InferDeviceType(device.Capabilities);
         }
 
         return device;
+    }
+    
+    /// <summary>
+    /// Recursively extract all capability properties from Zigbee exposes structure.
+    /// This handles both flat properties and nested features within composite types (light, switch, etc.)
+    /// </summary>
+    private static List<string> ExtractAllCapabilities(List<Expose> exposes)
+    {
+        var capabilities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        
+        void ExtractRecursive(List<Expose>? items)
+        {
+            if (items == null) return;
+            
+            foreach (var expose in items)
+            {
+                // Add the property if it exists
+                if (!string.IsNullOrEmpty(expose.property))
+                {
+                    capabilities.Add(expose.property);
+                }
+                
+                // Recursively process nested features (for composite types like light, switch, climate)
+                if (expose.features != null && expose.features.Count > 0)
+                {
+                    ExtractRecursive(expose.features);
+                }
+            }
+        }
+        
+        ExtractRecursive(exposes);
+        return capabilities.ToList();
     }
 
     private static DeviceType InferDeviceType(List<string> capabilities)
@@ -1103,7 +1130,8 @@ public class DeviceService(
 
             // Actively request current state instead of relying on retained messages
             // This is more reliable for getting accurate device state
-            var requestPayload = JsonSerializer.Serialize(new { state = "" });
+            // Note: Using empty object {} requests ALL properties
+            var requestPayload = "{}";
             var message = new MqttApplicationMessageBuilder()
                 .WithTopic(getTopic)
                 .WithPayload(requestPayload)
@@ -1405,9 +1433,10 @@ public class DeviceService(
                 .WithTopicFilter(stateTopic)
                 .Build());
 
-            // Request all state by sending an empty get request
+            // Request all state by sending an empty object
             // Zigbee2MQTT will respond with the full device state
-            var requestPayload = JsonSerializer.Serialize(new { state = "" });
+            // Note: Using empty object {} requests ALL properties, not just "state"
+            var requestPayload = "{}";
             var message = new MqttApplicationMessageBuilder()
                 .WithTopic(getTopic)
                 .WithPayload(requestPayload)

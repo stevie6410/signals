@@ -2307,6 +2307,453 @@ export class SeedApiService {
 @Injectable({
     providedIn: 'root'
 })
+export class SettingsApiService {
+    private http: HttpClient;
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
+        this.http = http;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getCapabilityMappings(): Observable<CapabilityMapping[]> {
+        let url_ = this.baseUrl + "/api/settings/capability-mappings";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetCapabilityMappings(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetCapabilityMappings(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CapabilityMapping[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CapabilityMapping[]>;
+        }));
+    }
+
+    protected processGetCapabilityMappings(response: HttpResponseBase): Observable<CapabilityMapping[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(CapabilityMapping.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    createCapabilityMapping(mapping: CapabilityMapping): Observable<CapabilityMapping> {
+        let url_ = this.baseUrl + "/api/settings/capability-mappings";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(mapping);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processCreateCapabilityMapping(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processCreateCapabilityMapping(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CapabilityMapping>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CapabilityMapping>;
+        }));
+    }
+
+    protected processCreateCapabilityMapping(response: HttpResponseBase): Observable<CapabilityMapping> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CapabilityMapping.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getCapabilityMapping(id: number): Observable<CapabilityMapping> {
+        let url_ = this.baseUrl + "/api/settings/capability-mappings/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetCapabilityMapping(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetCapabilityMapping(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CapabilityMapping>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CapabilityMapping>;
+        }));
+    }
+
+    protected processGetCapabilityMapping(response: HttpResponseBase): Observable<CapabilityMapping> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CapabilityMapping.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    updateCapabilityMapping(id: number, mapping: CapabilityMapping): Observable<CapabilityMapping> {
+        let url_ = this.baseUrl + "/api/settings/capability-mappings/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(mapping);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("put", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processUpdateCapabilityMapping(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processUpdateCapabilityMapping(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CapabilityMapping>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CapabilityMapping>;
+        }));
+    }
+
+    protected processUpdateCapabilityMapping(response: HttpResponseBase): Observable<CapabilityMapping> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CapabilityMapping.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    deleteCapabilityMapping(id: number): Observable<FileResponse> {
+        let url_ = this.baseUrl + "/api/settings/capability-mappings/{id}";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/octet-stream"
+            })
+        };
+
+        return this.http.request("delete", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processDeleteCapabilityMapping(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processDeleteCapabilityMapping(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<FileResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<FileResponse>;
+        }));
+    }
+
+    protected processDeleteCapabilityMapping(response: HttpResponseBase): Observable<FileResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getMappingsByCapability(capability: string): Observable<CapabilityMapping[]> {
+        let url_ = this.baseUrl + "/api/settings/capability-mappings/by-capability/{capability}";
+        if (capability === undefined || capability === null)
+            throw new globalThis.Error("The parameter 'capability' must be defined.");
+        url_ = url_.replace("{capability}", encodeURIComponent("" + capability));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetMappingsByCapability(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetMappingsByCapability(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<CapabilityMapping[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<CapabilityMapping[]>;
+        }));
+    }
+
+    protected processGetMappingsByCapability(response: HttpResponseBase): Observable<CapabilityMapping[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(CapabilityMapping.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    seedDefaultMappings(): Observable<number> {
+        let url_ = this.baseUrl + "/api/settings/capability-mappings/seed-defaults";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processSeedDefaultMappings(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processSeedDefaultMappings(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<number>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<number>;
+        }));
+    }
+
+    protected processSeedDefaultMappings(response: HttpResponseBase): Observable<number> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+                result200 = resultData200 !== undefined ? resultData200 : null as any;
+    
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    translateState(capability: string | undefined, rawValue: string | undefined, deviceType: string | null | undefined): Observable<TranslatedState> {
+        let url_ = this.baseUrl + "/api/settings/capability-mappings/translate?";
+        if (capability === null)
+            throw new globalThis.Error("The parameter 'capability' cannot be null.");
+        else if (capability !== undefined)
+            url_ += "capability=" + encodeURIComponent("" + capability) + "&";
+        if (rawValue === null)
+            throw new globalThis.Error("The parameter 'rawValue' cannot be null.");
+        else if (rawValue !== undefined)
+            url_ += "rawValue=" + encodeURIComponent("" + rawValue) + "&";
+        if (deviceType !== undefined && deviceType !== null)
+            url_ += "deviceType=" + encodeURIComponent("" + deviceType) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processTranslateState(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processTranslateState(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<TranslatedState>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<TranslatedState>;
+        }));
+    }
+
+    protected processTranslateState(response: HttpResponseBase): Observable<TranslatedState> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = TranslatedState.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+}
+
+@Injectable({
+    providedIn: 'root'
+})
 export class SignalsApiService {
     private http: HttpClient;
     private baseUrl: string;
@@ -3022,6 +3469,394 @@ export class ZonesApiService {
                 fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
             }
             return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getZonesForDashboard(): Observable<ZoneWithCapabilities[]> {
+        let url_ = this.baseUrl + "/api/Zones/dashboard";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetZonesForDashboard(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetZonesForDashboard(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<ZoneWithCapabilities[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<ZoneWithCapabilities[]>;
+        }));
+    }
+
+    protected processGetZonesForDashboard(response: HttpResponseBase): Observable<ZoneWithCapabilities[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(ZoneWithCapabilities.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getCapabilityTypes(): Observable<FileResponse> {
+        let url_ = this.baseUrl + "/api/Zones/capabilities/types";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/octet-stream"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetCapabilityTypes(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetCapabilityTypes(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<FileResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<FileResponse>;
+        }));
+    }
+
+    protected processGetCapabilityTypes(response: HttpResponseBase): Observable<FileResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getAllCapabilities(): Observable<ZoneCapabilityAssignment[]> {
+        let url_ = this.baseUrl + "/api/Zones/capabilities/all";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetAllCapabilities(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetAllCapabilities(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<ZoneCapabilityAssignment[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<ZoneCapabilityAssignment[]>;
+        }));
+    }
+
+    protected processGetAllCapabilities(response: HttpResponseBase): Observable<ZoneCapabilityAssignment[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(ZoneCapabilityAssignment.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getZoneCapabilities(id: number): Observable<ZoneCapabilityAssignment[]> {
+        let url_ = this.baseUrl + "/api/Zones/{id}/capabilities";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetZoneCapabilities(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetZoneCapabilities(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<ZoneCapabilityAssignment[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<ZoneCapabilityAssignment[]>;
+        }));
+    }
+
+    protected processGetZoneCapabilities(response: HttpResponseBase): Observable<ZoneCapabilityAssignment[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(ZoneCapabilityAssignment.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    assignCapability(id: number, request: CreateZoneCapabilityAssignmentRequest): Observable<ZoneCapabilityAssignment> {
+        let url_ = this.baseUrl + "/api/Zones/{id}/capabilities";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_ : any = {
+            body: content_,
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processAssignCapability(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processAssignCapability(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<ZoneCapabilityAssignment>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<ZoneCapabilityAssignment>;
+        }));
+    }
+
+    protected processAssignCapability(response: HttpResponseBase): Observable<ZoneCapabilityAssignment> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ZoneCapabilityAssignment.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    removeCapability(id: number, capability: string, priority: number | undefined): Observable<FileResponse> {
+        let url_ = this.baseUrl + "/api/Zones/{id}/capabilities/{capability}?";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        if (capability === undefined || capability === null)
+            throw new globalThis.Error("The parameter 'capability' must be defined.");
+        url_ = url_.replace("{capability}", encodeURIComponent("" + capability));
+        if (priority === null)
+            throw new globalThis.Error("The parameter 'priority' cannot be null.");
+        else if (priority !== undefined)
+            url_ += "priority=" + encodeURIComponent("" + priority) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/octet-stream"
+            })
+        };
+
+        return this.http.request("delete", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processRemoveCapability(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processRemoveCapability(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<FileResponse>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<FileResponse>;
+        }));
+    }
+
+    protected processRemoveCapability(response: HttpResponseBase): Observable<FileResponse> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200 || status === 206) {
+            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
+            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
+            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
+            if (fileName) {
+                fileName = decodeURIComponent(fileName);
+            } else {
+                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
+                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
+            }
+            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    getZoneWithCapabilities(id: number): Observable<ZoneWithCapabilities> {
+        let url_ = this.baseUrl + "/api/Zones/{id}/full";
+        if (id === undefined || id === null)
+            throw new globalThis.Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processGetZoneWithCapabilities(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processGetZoneWithCapabilities(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<ZoneWithCapabilities>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<ZoneWithCapabilities>;
+        }));
+    }
+
+    protected processGetZoneWithCapabilities(response: HttpResponseBase): Observable<ZoneWithCapabilities> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ZoneWithCapabilities.fromJS(resultData200);
+            return _observableOf(result200);
+            }));
         } else if (status !== 200 && status !== 204) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
@@ -5514,6 +6349,190 @@ export interface ISensorReading {
     unit?: string | undefined;
 }
 
+export class CapabilityMapping implements ICapabilityMapping {
+    id?: number;
+    capability?: string;
+    deviceType?: string | undefined;
+    property?: string;
+    displayName?: string;
+    icon?: string | undefined;
+    stateMappings?: StateMapping[];
+    unit?: string | undefined;
+    isSystemDefault?: boolean;
+    displayOrder?: number;
+
+    constructor(data?: ICapabilityMapping) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.capability = _data["capability"];
+            this.deviceType = _data["deviceType"];
+            this.property = _data["property"];
+            this.displayName = _data["displayName"];
+            this.icon = _data["icon"];
+            if (Array.isArray(_data["stateMappings"])) {
+                this.stateMappings = [] as any;
+                for (let item of _data["stateMappings"])
+                    this.stateMappings!.push(StateMapping.fromJS(item));
+            }
+            this.unit = _data["unit"];
+            this.isSystemDefault = _data["isSystemDefault"];
+            this.displayOrder = _data["displayOrder"];
+        }
+    }
+
+    static fromJS(data: any): CapabilityMapping {
+        data = typeof data === 'object' ? data : {};
+        let result = new CapabilityMapping();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["capability"] = this.capability;
+        data["deviceType"] = this.deviceType;
+        data["property"] = this.property;
+        data["displayName"] = this.displayName;
+        data["icon"] = this.icon;
+        if (Array.isArray(this.stateMappings)) {
+            data["stateMappings"] = [];
+            for (let item of this.stateMappings)
+                data["stateMappings"].push(item ? item.toJSON() : undefined as any);
+        }
+        data["unit"] = this.unit;
+        data["isSystemDefault"] = this.isSystemDefault;
+        data["displayOrder"] = this.displayOrder;
+        return data;
+    }
+}
+
+export interface ICapabilityMapping {
+    id?: number;
+    capability?: string;
+    deviceType?: string | undefined;
+    property?: string;
+    displayName?: string;
+    icon?: string | undefined;
+    stateMappings?: StateMapping[];
+    unit?: string | undefined;
+    isSystemDefault?: boolean;
+    displayOrder?: number;
+}
+
+export class StateMapping implements IStateMapping {
+    rawValue?: any | undefined;
+    friendlyName?: string;
+    icon?: string | undefined;
+    color?: string | undefined;
+    isActive?: boolean;
+
+    constructor(data?: IStateMapping) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.rawValue = _data["rawValue"];
+            this.friendlyName = _data["friendlyName"];
+            this.icon = _data["icon"];
+            this.color = _data["color"];
+            this.isActive = _data["isActive"];
+        }
+    }
+
+    static fromJS(data: any): StateMapping {
+        data = typeof data === 'object' ? data : {};
+        let result = new StateMapping();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["rawValue"] = this.rawValue;
+        data["friendlyName"] = this.friendlyName;
+        data["icon"] = this.icon;
+        data["color"] = this.color;
+        data["isActive"] = this.isActive;
+        return data;
+    }
+}
+
+export interface IStateMapping {
+    rawValue?: any | undefined;
+    friendlyName?: string;
+    icon?: string | undefined;
+    color?: string | undefined;
+    isActive?: boolean;
+}
+
+export class TranslatedState implements ITranslatedState {
+    rawValue?: string;
+    friendlyName?: string;
+    icon?: string | undefined;
+    color?: string | undefined;
+    isActive?: boolean;
+
+    constructor(data?: ITranslatedState) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.rawValue = _data["rawValue"];
+            this.friendlyName = _data["friendlyName"];
+            this.icon = _data["icon"];
+            this.color = _data["color"];
+            this.isActive = _data["isActive"];
+        }
+    }
+
+    static fromJS(data: any): TranslatedState {
+        data = typeof data === 'object' ? data : {};
+        let result = new TranslatedState();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["rawValue"] = this.rawValue;
+        data["friendlyName"] = this.friendlyName;
+        data["icon"] = this.icon;
+        data["color"] = this.color;
+        data["isActive"] = this.isActive;
+        return data;
+    }
+}
+
+export interface ITranslatedState {
+    rawValue?: string;
+    friendlyName?: string;
+    icon?: string | undefined;
+    color?: string | undefined;
+    isActive?: boolean;
+}
+
 export class SignalEvent implements ISignalEvent {
     id?: string;
     source?: string;
@@ -5792,6 +6811,242 @@ export interface IUpdateZoneRequest {
     color?: string | undefined;
     parentZoneId?: number | undefined;
     sortOrder?: number;
+}
+
+export class ZoneWithCapabilities implements IZoneWithCapabilities {
+    id?: number;
+    name?: string;
+    description?: string | undefined;
+    icon?: string | undefined;
+    color?: string | undefined;
+    parentZoneId?: number | undefined;
+    sortOrder?: number;
+    createdAt?: Date;
+    updatedAt?: Date;
+    parentZone?: Zone | undefined;
+    childZones?: Zone[];
+    capabilityAssignments?: ZoneCapabilityAssignment[];
+    devices?: Device[];
+
+    constructor(data?: IZoneWithCapabilities) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.name = _data["name"];
+            this.description = _data["description"];
+            this.icon = _data["icon"];
+            this.color = _data["color"];
+            this.parentZoneId = _data["parentZoneId"];
+            this.sortOrder = _data["sortOrder"];
+            this.createdAt = _data["createdAt"] ? new Date(_data["createdAt"].toString()) : undefined as any;
+            this.updatedAt = _data["updatedAt"] ? new Date(_data["updatedAt"].toString()) : undefined as any;
+            this.parentZone = _data["parentZone"] ? Zone.fromJS(_data["parentZone"]) : undefined as any;
+            if (Array.isArray(_data["childZones"])) {
+                this.childZones = [] as any;
+                for (let item of _data["childZones"])
+                    this.childZones!.push(Zone.fromJS(item));
+            }
+            if (Array.isArray(_data["capabilityAssignments"])) {
+                this.capabilityAssignments = [] as any;
+                for (let item of _data["capabilityAssignments"])
+                    this.capabilityAssignments!.push(ZoneCapabilityAssignment.fromJS(item));
+            }
+            if (Array.isArray(_data["devices"])) {
+                this.devices = [] as any;
+                for (let item of _data["devices"])
+                    this.devices!.push(Device.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): ZoneWithCapabilities {
+        data = typeof data === 'object' ? data : {};
+        let result = new ZoneWithCapabilities();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["name"] = this.name;
+        data["description"] = this.description;
+        data["icon"] = this.icon;
+        data["color"] = this.color;
+        data["parentZoneId"] = this.parentZoneId;
+        data["sortOrder"] = this.sortOrder;
+        data["createdAt"] = this.createdAt ? this.createdAt.toISOString() : undefined as any;
+        data["updatedAt"] = this.updatedAt ? this.updatedAt.toISOString() : undefined as any;
+        data["parentZone"] = this.parentZone ? this.parentZone.toJSON() : undefined as any;
+        if (Array.isArray(this.childZones)) {
+            data["childZones"] = [];
+            for (let item of this.childZones)
+                data["childZones"].push(item ? item.toJSON() : undefined as any);
+        }
+        if (Array.isArray(this.capabilityAssignments)) {
+            data["capabilityAssignments"] = [];
+            for (let item of this.capabilityAssignments)
+                data["capabilityAssignments"].push(item ? item.toJSON() : undefined as any);
+        }
+        if (Array.isArray(this.devices)) {
+            data["devices"] = [];
+            for (let item of this.devices)
+                data["devices"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IZoneWithCapabilities {
+    id?: number;
+    name?: string;
+    description?: string | undefined;
+    icon?: string | undefined;
+    color?: string | undefined;
+    parentZoneId?: number | undefined;
+    sortOrder?: number;
+    createdAt?: Date;
+    updatedAt?: Date;
+    parentZone?: Zone | undefined;
+    childZones?: Zone[];
+    capabilityAssignments?: ZoneCapabilityAssignment[];
+    devices?: Device[];
+}
+
+export class ZoneCapabilityAssignment implements IZoneCapabilityAssignment {
+    id?: number;
+    zoneId?: number;
+    capability?: string;
+    deviceId?: string;
+    property?: string | undefined;
+    priority?: number;
+    displayName?: string | undefined;
+    createdAt?: Date;
+    updatedAt?: Date;
+    zoneName?: string | undefined;
+    deviceName?: string | undefined;
+
+    constructor(data?: IZoneCapabilityAssignment) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.zoneId = _data["zoneId"];
+            this.capability = _data["capability"];
+            this.deviceId = _data["deviceId"];
+            this.property = _data["property"];
+            this.priority = _data["priority"];
+            this.displayName = _data["displayName"];
+            this.createdAt = _data["createdAt"] ? new Date(_data["createdAt"].toString()) : undefined as any;
+            this.updatedAt = _data["updatedAt"] ? new Date(_data["updatedAt"].toString()) : undefined as any;
+            this.zoneName = _data["zoneName"];
+            this.deviceName = _data["deviceName"];
+        }
+    }
+
+    static fromJS(data: any): ZoneCapabilityAssignment {
+        data = typeof data === 'object' ? data : {};
+        let result = new ZoneCapabilityAssignment();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["zoneId"] = this.zoneId;
+        data["capability"] = this.capability;
+        data["deviceId"] = this.deviceId;
+        data["property"] = this.property;
+        data["priority"] = this.priority;
+        data["displayName"] = this.displayName;
+        data["createdAt"] = this.createdAt ? this.createdAt.toISOString() : undefined as any;
+        data["updatedAt"] = this.updatedAt ? this.updatedAt.toISOString() : undefined as any;
+        data["zoneName"] = this.zoneName;
+        data["deviceName"] = this.deviceName;
+        return data;
+    }
+}
+
+export interface IZoneCapabilityAssignment {
+    id?: number;
+    zoneId?: number;
+    capability?: string;
+    deviceId?: string;
+    property?: string | undefined;
+    priority?: number;
+    displayName?: string | undefined;
+    createdAt?: Date;
+    updatedAt?: Date;
+    zoneName?: string | undefined;
+    deviceName?: string | undefined;
+}
+
+export class CreateZoneCapabilityAssignmentRequest implements ICreateZoneCapabilityAssignmentRequest {
+    capability?: string;
+    deviceId?: string;
+    property?: string | undefined;
+    priority?: number;
+    displayName?: string | undefined;
+
+    constructor(data?: ICreateZoneCapabilityAssignmentRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.capability = _data["capability"];
+            this.deviceId = _data["deviceId"];
+            this.property = _data["property"];
+            this.priority = _data["priority"];
+            this.displayName = _data["displayName"];
+        }
+    }
+
+    static fromJS(data: any): CreateZoneCapabilityAssignmentRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateZoneCapabilityAssignmentRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["capability"] = this.capability;
+        data["deviceId"] = this.deviceId;
+        data["property"] = this.property;
+        data["priority"] = this.priority;
+        data["displayName"] = this.displayName;
+        return data;
+    }
+}
+
+export interface ICreateZoneCapabilityAssignmentRequest {
+    capability?: string;
+    deviceId?: string;
+    property?: string | undefined;
+    priority?: number;
+    displayName?: string | undefined;
 }
 
 export interface FileResponse {

@@ -291,7 +291,9 @@ export class SignalRService {
       this.initializeConnection();
     }
 
-    if (this.hubConnection?.state === signalR.HubConnectionState.Connected) {
+    // Only attempt to connect if in disconnected state
+    if (this.hubConnection?.state !== signalR.HubConnectionState.Disconnected) {
+      console.log('SignalR: Already connected or connecting, state:', this.hubConnection?.state);
       return;
     }
 

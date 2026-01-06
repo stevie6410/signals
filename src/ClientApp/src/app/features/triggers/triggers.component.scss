@@ -431,17 +431,25 @@
 }
 
 .value-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   padding: 0.25rem 0.5rem;
   background: var(--surface-2);
   border-radius: var(--radius-sm);
   font-size: 0.875rem;
   color: var(--text-secondary);
+  border: 1px solid var(--border-secondary);
 
   &.active {
     background: rgba(16, 185, 129, 0.15);
-    color: var(--success);
+    color: var(--badge-color, var(--success));
     border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+
+  &:not(.active) {
+    background: var(--surface-2);
+    color: var(--badge-color, var(--text-muted));
   }
 }
 
