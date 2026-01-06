@@ -405,7 +405,7 @@ export class AutomationEditorComponent implements OnInit {
         value2: c.value2?.toString() || '',
         timeStart: c.timeStart || '',
         timeEnd: c.timeEnd || '',
-        daysOfWeek: c.daysOfWeek || [],
+        daysOfWeek: (c.daysOfWeek || []).map(d => d as number),
         sortOrder: c.sortOrder ?? i,
       }))
     );
@@ -520,14 +520,14 @@ export class AutomationEditorComponent implements OnInit {
 
   getTriggerTypeLabel(type: TriggerType): string {
     const labels: Record<number, string> = {
-      [TriggerType.DeviceState]: '📡 Device State',
+      [TriggerType.DeviceState as number]: '📡 Device State',
       [TriggerType.Time]: '⏰ Time',
       [TriggerType.Sunrise]: '🌅 Sunrise',
       [TriggerType.Sunset]: '🌇 Sunset',
       [TriggerType.SensorThreshold]: '📊 Sensor Threshold',
       [TriggerType.Manual]: '👆 Manual',
     };
-    return labels[type] || type.toString();
+    return labels[type as number] || type.toString();
   }
 
   getConditionTypeLabel(type: ConditionType): string {

@@ -494,7 +494,7 @@
                   <td class="event-id-cell">
                     @if (log.generatedTriggerEventId) {
                       <span class="event-id" title="{{ log.generatedTriggerEventId }}">
-                        ✅ {{ log.generatedTriggerEventId?.substring(0, 8) }}...
+                        ✅ {{ log.generatedTriggerEventId.substring(0, 8) }}...
                       </span>
                     } @else {
                       <span class="no-event">-</span>

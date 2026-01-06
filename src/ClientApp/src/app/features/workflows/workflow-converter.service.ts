@@ -395,7 +395,7 @@ export class WorkflowConverterService {
       [ComparisonOperator.ChangesFrom]: 'changes_from',
       [ComparisonOperator.AnyChange]: 'any_change',
     };
-    return mapping[operator] ?? 'equals';
+    return mapping[operator as number] ?? 'equals';
   }
 
   /**
