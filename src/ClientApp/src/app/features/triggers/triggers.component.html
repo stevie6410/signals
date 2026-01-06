@@ -36,6 +36,14 @@
       <span class="tab-icon">⚙️</span>
       <span class="tab-label">Custom Triggers</span>
     </button>
+    <button
+      class="tab"
+      [class.active]="activeTab() === 'logs'"
+      (click)="switchTab('logs')"
+    >
+      <span class="tab-icon">📊</span>
+      <span class="tab-label">Execution Logs</span>
+    </button>
   </div>
 
   <!-- Trigger Events Tab -->
@@ -404,4 +412,105 @@
       </div>
     </div>
   }
+
+  <!-- Execution Logs Tab -->
+  @if (activeTab() === 'logs') {
+    <div class="logs-page">
+      <!-- Logs Controls -->
+      <div class="logs-controls">
+        <div class="filter-group">
+          <label>Filter by Trigger:</label>
+          <select 
+            class="form-select"
+            [ngModel]="selectedTriggerFilter()"
+            (ngModelChange)="filterLogsByTrigger($event)"
+          >
+            @for (option of getTriggerOptions(); track option.id) {
+              <option [value]="option.id">{{ option.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="auto-refresh-toggle">
+          <label>
+            <input 
+              type="checkbox" 
+              [ngModel]="autoRefreshLogs()"
+              (ngModelChange)="toggleAutoRefresh()"
+            />
+            <span>Auto-refresh (3s)</span>
+          </label>
+        </div>
+
+        <button class="btn btn-secondary" (click)="loadExecutionLogs()">
+          <span>🔄</span> Refresh
+        </button>
+      </div>
+
+      <!-- Logs Table -->
+      @if (logsLoading()) {
+        <div class="loading">Loading execution logs...</div>
+      } @else if (executionLogs().length === 0) {
+        <div class="empty-state">
+          <div class="empty-icon">📊</div>
+          <h3>No Execution Logs</h3>
+          <p>Custom triggers haven't fired yet. Once they start evaluating sensor readings, logs will appear here.</p>
+        </div>
+      } @else {
+        <div class="logs-table-container">
+          <table class="logs-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Trigger Name</th>
+                <th>Device</th>
+                <th>Metric</th>
+                <th>Value</th>
+                <th>Condition Met</th>
+                <th>Event ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (log of executionLogs(); track log.id) {
+                <tr>
+                  <td class="time-cell">
+                    {{ formatTimestamp(log.firedUtc) }}
+                  </td>
+                  <td class="trigger-name">
+                    {{ getLogTriggerName(log) }}
+                  </td>
+                  <td class="device-cell">
+                    {{ log.deviceId }}
+                  </td>
+                  <td class="metric-cell">
+                    <span class="metric-badge">{{ log.metric }}</span>
+                  </td>
+                  <td class="value-cell">
+                    <span class="value">{{ log.value }}</span>
+                  </td>
+                  <td class="condition-cell">
+                    <code>{{ log.condition }}</code>
+                  </td>
+                  <td class="event-id-cell">
+                    @if (log.generatedTriggerEventId) {
+                      <span class="event-id" title="{{ log.generatedTriggerEventId }}">
+                        ✅ {{ log.generatedTriggerEventId?.substring(0, 8) }}...
+                      </span>
+                    } @else {
+                      <span class="no-event">-</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="logs-footer">
+          <p class="logs-count">Showing {{ executionLogs().length }} execution logs</p>
+        </div>
+      }
+    </div>
+  }
 </div>
+

@@ -1,10 +1,12 @@
 using SDHome.Lib.Data.Entities;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SDHome.Lib.Models;
 
 // ===== Enums =====
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum CustomTriggerType
 {
     SensorThreshold,      // When sensor value meets threshold (temp < 20, battery < 10, etc.)
@@ -13,6 +15,7 @@ public enum CustomTriggerType
     SignalQuality         // When signal quality (linkquality, RSSI) falls below threshold
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ThresholdOperator
 {
     GreaterThan,

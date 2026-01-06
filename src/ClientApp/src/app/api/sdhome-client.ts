@@ -4521,13 +4521,13 @@ export interface IAutomationRule {
 }
 
 export enum TriggerMode {
-    Any = 0,
-    All = 1,
+    Any = "Any",
+    All = "All",
 }
 
 export enum ConditionMode {
-    All = 0,
-    Any = 1,
+    All = "All",
+    Any = "Any",
 }
 
 export class AutomationTrigger implements IAutomationTrigger {
@@ -4607,30 +4607,30 @@ export interface IAutomationTrigger {
 }
 
 export enum TriggerType {
-    DeviceState = 0,
-    Time = 1,
-    Sunrise = 2,
-    Sunset = 3,
-    SensorThreshold = 4,
-    Manual = 5,
-    TriggerEvent = 6,
-    SensorReading = 7,
+    DeviceState = "DeviceState",
+    Time = "Time",
+    Sunrise = "Sunrise",
+    Sunset = "Sunset",
+    SensorThreshold = "SensorThreshold",
+    Manual = "Manual",
+    TriggerEvent = "TriggerEvent",
+    SensorReading = "SensorReading",
 }
 
 export enum ComparisonOperator {
-    Equals = 0,
-    NotEquals = 1,
-    GreaterThan = 2,
-    GreaterThanOrEqual = 3,
-    LessThan = 4,
-    LessThanOrEqual = 5,
-    Between = 6,
-    Contains = 7,
-    StartsWith = 8,
-    EndsWith = 9,
-    ChangesTo = 10,
-    ChangesFrom = 11,
-    AnyChange = 12,
+    Equals = "Equals",
+    NotEquals = "NotEquals",
+    GreaterThan = "GreaterThan",
+    GreaterThanOrEqual = "GreaterThanOrEqual",
+    LessThan = "LessThan",
+    LessThanOrEqual = "LessThanOrEqual",
+    Between = "Between",
+    Contains = "Contains",
+    StartsWith = "StartsWith",
+    EndsWith = "EndsWith",
+    ChangesTo = "ChangesTo",
+    ChangesFrom = "ChangesFrom",
+    AnyChange = "AnyChange",
 }
 
 export class AutomationCondition implements IAutomationCondition {
@@ -4722,22 +4722,22 @@ export interface IAutomationCondition {
 }
 
 export enum ConditionType {
-    DeviceState = 0,
-    TimeRange = 1,
-    DayOfWeek = 2,
-    SunPosition = 3,
-    And = 4,
-    Or = 5,
+    DeviceState = "DeviceState",
+    TimeRange = "TimeRange",
+    DayOfWeek = "DayOfWeek",
+    SunPosition = "SunPosition",
+    And = "And",
+    Or = "Or",
 }
 
 export enum DayOfWeek {
-    Sunday = 0,
-    Monday = 1,
-    Tuesday = 2,
-    Wednesday = 3,
-    Thursday = 4,
-    Friday = 5,
-    Saturday = 6,
+    Sunday = "Sunday",
+    Monday = "Monday",
+    Tuesday = "Tuesday",
+    Wednesday = "Wednesday",
+    Thursday = "Thursday",
+    Friday = "Friday",
+    Saturday = "Saturday",
 }
 
 export class AutomationAction implements IAutomationAction {
@@ -4829,13 +4829,13 @@ export interface IAutomationAction {
 }
 
 export enum ActionType {
-    SetDeviceState = 0,
-    ToggleDevice = 1,
-    Delay = 2,
-    Webhook = 3,
-    Notification = 4,
-    ActivateScene = 5,
-    RunAutomation = 6,
+    SetDeviceState = "SetDeviceState",
+    ToggleDevice = "ToggleDevice",
+    Delay = "Delay",
+    Webhook = "Webhook",
+    Notification = "Notification",
+    ActivateScene = "ActivateScene",
+    RunAutomation = "RunAutomation",
 }
 
 export class CreateAutomationRequest implements ICreateAutomationRequest {
@@ -5339,11 +5339,11 @@ export interface IAutomationExecutionLog {
 }
 
 export enum ExecutionStatus {
-    Success = 0,
-    PartialFailure = 1,
-    Failure = 2,
-    SkippedCooldown = 3,
-    SkippedCondition = 4,
+    Success = "Success",
+    PartialFailure = "PartialFailure",
+    Failure = "Failure",
+    SkippedCooldown = "SkippedCooldown",
+    SkippedCondition = "SkippedCondition",
 }
 
 export class AutomationActionResult implements IAutomationActionResult {
@@ -5923,20 +5923,20 @@ export interface ICustomTriggerRule {
 }
 
 export enum CustomTriggerType {
-    SensorThreshold = 0,
-    SensorChange = 1,
-    MetricUnavailable = 2,
-    SignalQuality = 3,
+    SensorThreshold = "SensorThreshold",
+    SensorChange = "SensorChange",
+    MetricUnavailable = "MetricUnavailable",
+    SignalQuality = "SignalQuality",
 }
 
 export enum ThresholdOperator {
-    GreaterThan = 0,
-    GreaterThanOrEqual = 1,
-    LessThan = 2,
-    LessThanOrEqual = 3,
-    Equals = 4,
-    NotEquals = 5,
-    Between = 6,
+    GreaterThan = "GreaterThan",
+    GreaterThanOrEqual = "GreaterThanOrEqual",
+    LessThan = "LessThan",
+    LessThanOrEqual = "LessThanOrEqual",
+    Equals = "Equals",
+    NotEquals = "NotEquals",
+    Between = "Between",
 }
 
 export class CreateCustomTriggerRequest implements ICreateCustomTriggerRequest {
@@ -6288,14 +6288,14 @@ export interface IDevice {
 }
 
 export enum DeviceType {
-    Light = 0,
-    Switch = 1,
-    Sensor = 2,
-    Climate = 3,
-    Lock = 4,
-    Cover = 5,
-    Fan = 6,
-    Other = 7,
+    Light = "Light",
+    Switch = "Switch",
+    Sensor = "Sensor",
+    Climate = "Climate",
+    Lock = "Lock",
+    Cover = "Cover",
+    Fan = "Fan",
+    Other = "Other",
 }
 
 export class Zone implements IZone {
@@ -6963,9 +6963,9 @@ export interface IZigbeeNode {
 }
 
 export enum ZigbeeDeviceType {
-    Coordinator = 0,
-    Router = 1,
-    EndDevice = 2,
+    Coordinator = "Coordinator",
+    Router = "Router",
+    EndDevice = "EndDevice",
 }
 
 export class ZigbeeLink implements IZigbeeLink {
@@ -7397,19 +7397,19 @@ export interface ISignalEvent {
 }
 
 export enum DeviceKind {
-    Unknown = 0,
-    Button = 1,
-    MotionSensor = 2,
-    ContactSensor = 3,
-    Thermometer = 4,
-    Light = 5,
-    Switch = 6,
-    Outlet = 7,
+    Unknown = "Unknown",
+    Button = "Button",
+    MotionSensor = "MotionSensor",
+    ContactSensor = "ContactSensor",
+    Thermometer = "Thermometer",
+    Light = "Light",
+    Switch = "Switch",
+    Outlet = "Outlet",
 }
 
 export enum EventCategory {
-    Trigger = 0,
-    Telemetry = 1,
+    Trigger = "Trigger",
+    Telemetry = "Telemetry",
 }
 
 export class TriggerEvent implements ITriggerEvent {

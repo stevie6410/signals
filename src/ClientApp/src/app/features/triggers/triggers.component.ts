@@ -1,7 +1,7 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TriggersApiService, TriggerEvent, CustomTriggersApiService, CustomTriggerSummary, CustomTriggerRule, CreateCustomTriggerRequest, UpdateCustomTriggerRequest, CustomTriggerType, ThresholdOperator } from '../../api/sdhome-client';
+import { TriggersApiService, TriggerEvent, CustomTriggersApiService, CustomTriggerSummary, CustomTriggerRule, CreateCustomTriggerRequest, UpdateCustomTriggerRequest, CustomTriggerType, ThresholdOperator, CustomTriggerLog } from '../../api/sdhome-client';
 import { SignalRService } from '../../core/services/signalr.service';
 import { CapabilityMappingService, TranslatedState } from '../../core/services/capability-mapping.service';
 import { DevicesApiService, Device } from '../../api/sdhome-client';
@@ -26,7 +26,7 @@ export class TriggersComponent implements OnInit {
   private capabilityMapping = inject(CapabilityMappingService);
 
   // Tab state
-  activeTab = signal<'events' | 'custom'>('events');
+  activeTab = signal<'events' | 'custom' | 'logs'>('events');
 
   // Trigger Events State
   triggers = signal<TriggerEvent[]>([]);
@@ -42,6 +42,13 @@ export class TriggersComponent implements OnInit {
   showCreateModal = signal(false);
   editingTrigger = signal<CustomTriggerRule | null>(null);
   
+  // Execution Logs State
+  executionLogs = signal<CustomTriggerLog[]>([]);
+  logsLoading = signal(false);
+  selectedTriggerFilter = signal<string | null>(null);
+  autoRefreshLogs = signal(true);
+  private logsRefreshInterval: any = null;
+
   // Form state
   form = signal({
     name: '',
@@ -125,6 +132,19 @@ export class TriggersComponent implements OnInit {
     this.capabilityMapping.ensureLoaded();
     this.loadTriggers();
     this.loadDevices();
+    
+    // Set up auto-refresh for logs when on logs tab
+    effect(() => {
+      if (this.activeTab() === 'logs' && this.autoRefreshLogs()) {
+        this.startLogsAutoRefresh();
+      } else {
+        this.stopLogsAutoRefresh();
+      }
+    });
+  }
+  
+  ngOnDestroy() {
+    this.stopLogsAutoRefresh();
   }
 
   loadTriggers() {
@@ -295,11 +315,14 @@ export class TriggersComponent implements OnInit {
 
   // ===== Custom Triggers Methods =====
 
-  switchTab(tab: 'events' | 'custom') {
+  switchTab(tab: 'events' | 'custom' | 'logs') {
     this.activeTab.set(tab);
     if (tab === 'custom' && this.customTriggers().length === 0) {
       this.loadCustomTriggers();
       this.loadDevices();
+    }
+    if (tab === 'logs') {
+      this.loadExecutionLogs();
     }
   }
 
@@ -496,6 +519,59 @@ export class TriggersComponent implements OnInit {
 
   updateFormEnabled(value: boolean) {
     this.form.update(f => ({ ...f, enabled: value }));
+  }
+
+  // ===== Execution Logs Methods =====
+  
+  loadExecutionLogs() {
+    this.logsLoading.set(true);
+    const triggerIdFilter = this.selectedTriggerFilter();
+    
+    this.customTriggersService.getExecutionLogs(triggerIdFilter || undefined, 200).subscribe({
+      next: (data) => {
+        this.executionLogs.set(data);
+        this.logsLoading.set(false);
+      },
+      error: (err) => {
+        console.error('Error loading execution logs:', err);
+        this.logsLoading.set(false);
+      }
+    });
+  }
+  
+  filterLogsByTrigger(triggerId: string | null) {
+    this.selectedTriggerFilter.set(triggerId);
+    this.loadExecutionLogs();
+  }
+  
+  toggleAutoRefresh() {
+    this.autoRefreshLogs.update(v => !v);
+  }
+  
+  startLogsAutoRefresh() {
+    this.stopLogsAutoRefresh();
+    this.logsRefreshInterval = setInterval(() => {
+      this.loadExecutionLogs();
+    }, 3000); // Refresh every 3 seconds
+  }
+  
+  stopLogsAutoRefresh() {
+    if (this.logsRefreshInterval) {
+      clearInterval(this.logsRefreshInterval);
+      this.logsRefreshInterval = null;
+    }
+  }
+  
+  getLogTriggerName(log: CustomTriggerLog): string {
+    const trigger = this.customTriggers().find(t => t.id === log.customTriggerRuleId);
+    return trigger?.name || 'Unknown Trigger';
+  }
+  
+  getTriggerOptions() {
+    return [
+      { id: null, name: 'All Triggers' },
+      ...this.customTriggers().map(t => ({ id: t.id, name: t.name }))
+    ];
   }
 
   CustomTriggerType = CustomTriggerType;
